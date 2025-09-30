@@ -556,6 +556,11 @@ function App() {
   };
 
   const buyFeed = (type) => {
+    if (gameFrozen) {
+      showFloatingText('⏸️ Game is frozen!', '#6b7280');
+      return;
+    }
+    
     const feedPackages = {
       small: { amount: 100, cost: 50 },
       large: { amount: 500, cost: 250 },
@@ -575,6 +580,11 @@ function App() {
   };
 
   const startProduction = (recipeId) => {
+    if (gameFrozen) {
+      showFloatingText('⏸️ Game is frozen!', '#6b7280');
+      return;
+    }
+    
     const recipe = RECIPES[recipeId];
     if (!recipe) return;
 
@@ -652,6 +662,11 @@ function App() {
   };
 
   const buyCook = () => {
+    if (gameFrozen) {
+      showFloatingText('⏸️ Game is frozen!', '#6b7280');
+      return;
+    }
+    
     const price = Math.floor(400 * Math.pow(2.5, gameState.cooks - 1));
     if (gameState.money >= price) {
       setGameState(prev => ({
@@ -667,6 +682,11 @@ function App() {
 
   // Auto Collector Functions
   const buyAutoCollector = () => {
+    if (gameFrozen) {
+      showFloatingText('⏸️ Game is frozen!', '#6b7280');
+      return;
+    }
+    
     const price = 2000; // Premium initial purchase
     if (gameState.money >= price && !gameState.autoCollectorOwned) {
       setGameState(prev => ({
@@ -682,6 +702,11 @@ function App() {
   };
 
   const topUpAutoCollector = () => {
+    if (gameFrozen) {
+      showFloatingText('⏸️ Game is frozen!', '#6b7280');
+      return;
+    }
+    
     const baseDuration = 60000; // 60 seconds base
     const durationPerLevel = gameState.autoCollectorLevel * 30000; // +30s per level
     const totalDuration = baseDuration + durationPerLevel;
@@ -704,6 +729,11 @@ function App() {
   };
 
   const upgradeAutoCollector = () => {
+    if (gameFrozen) {
+      showFloatingText('⏸️ Game is frozen!', '#6b7280');
+      return;
+    }
+    
     const price = Math.floor(2000 * Math.pow(2.2, gameState.autoCollectorLevel - 1));
     if (gameState.money >= price && gameState.autoCollectorOwned) {
       setGameState(prev => ({
@@ -722,6 +752,11 @@ function App() {
   };
 
   const startBreeding = () => {
+    if (gameFrozen) {
+      showFloatingText('⏸️ Game is frozen!', '#6b7280');
+      return;
+    }
+    
     const chickenCost = 3;
     const moneyCost = 800; // Substantial breeding fee
     const breedingTime = 2 * 60 * 1000; // 2 minutes in milliseconds
@@ -784,6 +819,7 @@ function App() {
   const toggleGameFreeze = () => {
     const newFrozenState = !gameFrozen;
     setGameFrozen(newFrozenState);
+    gameFrozenRef.current = newFrozenState; // Update ref immediately
     
     if (newFrozenState) {
       showFloatingText('⏸️ Game Frozen!', '#6b7280');
@@ -795,6 +831,7 @@ function App() {
 
   const gameLoopRef = useRef(null);
   const saveIntervalRef = useRef(null);
+  const gameFrozenRef = useRef(false);
 
   // Game initialization and main loop
   const initGame = () => {
@@ -808,7 +845,7 @@ function App() {
     gameLoopRef.current = setInterval(() => {
       setGameState(prevState => {
         // Don't update game state if frozen
-        if (gameFrozen) return prevState;
+        if (gameFrozenRef.current) return prevState;
         
         const now = Date.now();
         const deltaTime = Math.min(now - prevState.lastUpdate, 60000);
@@ -940,7 +977,7 @@ function App() {
     const interval = setInterval(() => {
       setGameState(prev => {
         // Don't produce if game is frozen
-        if (gameFrozen) return prev;
+        if (gameFrozenRef.current) return prev;
         
         // Only produce if there's feed available
         if (prev.feed <= 0) return prev;
@@ -962,6 +999,11 @@ function App() {
 
     return () => clearInterval(interval);
   }, [gameState.chickens, gameState.goldenChickens, gameState.coopUpgrades, gameInitialized, gameFrozen]); // Added gameFrozen to dependencies
+
+  // Sync gameFrozen state with ref
+  useEffect(() => {
+    gameFrozenRef.current = gameFrozen;
+  }, [gameFrozen]);
 
   // Handle breeding completion notifications
   useEffect(() => {
