@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import '@fontsource/alan-sans/400.css'; // Regular weight
+import '@fontsource/alan-sans/700.css'; // Bold weight
 
 // Sound System using Web Audio API
 class SoundManager {
@@ -427,10 +429,14 @@ function App() {
   const [gameInitialized, setGameInitialized] = useState(false);
   const [floatingTexts, setFloatingTexts] = useState([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [musicEnabled, setMusicEnabled] = useState(false);
   const [showTransactions, setShowTransactions] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [gameFrozen, setGameFrozen] = useState(false);
+
+  // Refs for intervals and freeze state
+  const gameLoopRef = useRef(null);
+  const saveIntervalRef = useRef(null);
+  const gameFrozenRef = useRef(false);
 
   // Transaction logging system
   const logTransaction = (type, description, amount, details = {}) => {
@@ -821,6 +827,8 @@ function App() {
     setGameFrozen(newFrozenState);
     gameFrozenRef.current = newFrozenState; // Update ref immediately
     
+    console.log(`🎮 Game ${newFrozenState ? 'FROZEN' : 'RESUMED'} - gameFrozenRef.current = ${gameFrozenRef.current}`);
+    
     if (newFrozenState) {
       showFloatingText('⏸️ Game Frozen!', '#6b7280');
     } else {
@@ -828,10 +836,6 @@ function App() {
     }
   };
 
-
-  const gameLoopRef = useRef(null);
-  const saveIntervalRef = useRef(null);
-  const gameFrozenRef = useRef(false);
 
   // Game initialization and main loop
   const initGame = () => {
@@ -845,11 +849,22 @@ function App() {
     gameLoopRef.current = setInterval(() => {
       setGameState(prevState => {
         // Don't update game state if frozen
-        if (gameFrozenRef.current) return prevState;
+        if (gameFrozenRef.current) {
+          // Console log every 5 seconds when frozen to avoid spam
+          if (Date.now() % 5000 < 100) {
+            console.log('🎮 Main game loop: FROZEN - no updates');
+          }
+          return prevState;
+        }
         
         const now = Date.now();
         const deltaTime = Math.min(now - prevState.lastUpdate, 60000);
         let newState = { ...prevState, lastUpdate: now };
+
+        // Debug log (only occasionally to avoid spam)
+        if (now % 10000 < 100) {
+          console.log('🎮 Main game loop: RUNNING - updating game state');
+        }
 
         // Update game time (60x speed)
         const gameTimeIncrease = deltaTime * GAME_CONFIG.gameSpeed;
@@ -1103,15 +1118,15 @@ function App() {
     return { rank, valuation: playerValuation };
   };
 
-  // Typography system
+  // Typography system with Alan Sans
   const typography = {
-    balance: { fontSize: '48px', fontWeight: 'bold' },        // Main balance display
-    sectionHeader: { fontSize: '24px', fontWeight: 'bold' },  // Section headers (Kitchen, Shop, etc.)
-    cardHeader: { fontSize: '18px', fontWeight: 'bold' },     // Card titles, important text
-    bodyText: { fontSize: '16px', fontWeight: 'normal' },     // Main body text
-    secondaryText: { fontSize: '14px', fontWeight: 'normal' }, // Secondary text
-    labelText: { fontSize: '12px', fontWeight: 'normal' },    // Labels, small text
-    tinyText: { fontSize: '10px', fontWeight: 'normal' }      // Very small text
+    balance: { fontSize: '48px', fontWeight: 'bold', fontFamily: 'Alan Sans, Arial, sans-serif' },        // Main balance display
+    sectionHeader: { fontSize: '24px', fontWeight: 'bold', fontFamily: 'Alan Sans, Arial, sans-serif' },  // Section headers (Kitchen, Shop, etc.)
+    cardHeader: { fontSize: '18px', fontWeight: 'bold', fontFamily: 'Alan Sans, Arial, sans-serif' },     // Card titles, important text
+    bodyText: { fontSize: '16px', fontWeight: 'normal', fontFamily: 'Alan Sans, Arial, sans-serif' },     // Main body text
+    secondaryText: { fontSize: '14px', fontWeight: 'normal', fontFamily: 'Alan Sans, Arial, sans-serif' }, // Secondary text
+    labelText: { fontSize: '12px', fontWeight: 'normal', fontFamily: 'Alan Sans, Arial, sans-serif' },    // Labels, small text
+    tinyText: { fontSize: '10px', fontWeight: 'normal', fontFamily: 'Alan Sans, Arial, sans-serif' }      // Very small text
   };
 
   // Color system (based on shop section)
@@ -1212,7 +1227,7 @@ function App() {
       backgroundColor: colors.sectionBg, 
       padding: '8px 16px', 
       minHeight: '100vh',
-      fontFamily: 'Arial, sans-serif',
+      fontFamily: 'Alan Sans, Arial, sans-serif',
       position: 'relative'
     }}>
       <div style={{ 
@@ -1808,7 +1823,7 @@ function App() {
                       transition: 'all 0.2s ease',
                       width: '100%',
                       ...typography.bodyText,
-                      fontFamily: 'inherit',
+                      fontFamily: 'Alan Sans, Arial, sans-serif',
                       boxShadow: canProduce ? colors.shadow : 'none',
                     }}
                     onMouseOver={(e) => {
