@@ -1,7 +1,7 @@
 {
   "name": "chicken-empire-react",
   "version": "0.1.0",
-  "homepage": "https://chinmayjoshi18.github.io/chicken-empire",
+  "_homepage_disabled_for_dev": "https://chinmayjoshi18.github.io/chicken-empire",
   "private": true,
   "dependencies": {
     "@fontsource/alan-sans": "^5.2.1",
@@ -9,6 +9,7 @@
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
+    "firebase": "^12.3.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-scripts": "5.0.1",

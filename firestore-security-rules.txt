@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only read/write their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Game saves - users can only access their own saves
+    match /gameData/{document} {
+      // Allow read/write if user is authenticated and it's their save
+      allow read, write: if request.auth != null && (
+        // Either the document belongs to them (userId format)
+        document == request.auth.uid ||
+        // Or it's a named save (userId_saveName format)
+        document.matches(request.auth.uid + '_.*')
+      );
+    }
+    
+    // Public read access for leaderboard (but only owners can write)
+    match /gameData/{document} {
+      allow read: if true; // Anyone can read for leaderboard
+      allow write: if request.auth != null && 
+        resource != null && 
+        resource.data.playerId == request.auth.uid;
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

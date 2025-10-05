@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import '@fontsource/alan-sans/400.css';
 import '@fontsource/alan-sans/700.css';
+import { firebaseGameManager } from './services/firebase';
 
 // Sound Manager Class
 class SoundManager {
@@ -13,7 +14,9 @@ class SoundManager {
     this.isInitialized = false;
     this.isMuted = false;
     this.backgroundMusicEnabled = true; // Re-enabled
-    this.musicVolume = 0.3; // Default volume
+    this.musicVolume = 0.05; // Default volume (5%)
+    this.fadeInterval = null;
+    this.isFading = false;
   }
 
   async initialize() {
@@ -35,45 +38,104 @@ class SoundManager {
 
   initializeBackgroundMusic() {
     try {
-      this.backgroundMusic = new Audio('/happyfarm.mp3'); // Load MP3
+      console.log('🎵 Initializing background music...');
+      this.backgroundMusic = new Audio(`${process.env.PUBLIC_URL}/happyfarm.mp3`); // Load MP3 with correct path
       this.backgroundMusic.loop = true;
       this.backgroundMusic.volume = this.musicVolume;
       this.backgroundMusic.preload = 'auto';
+      
+      this.backgroundMusic.addEventListener('loadstart', () => {
+        console.log('🎵 Music loading started');
+      });
+      
+      this.backgroundMusic.addEventListener('loadeddata', () => {
+        console.log('🎵 Music data loaded');
+      });
+      
       this.backgroundMusic.addEventListener('canplaythrough', () => {
-        console.log('🎵 Background music loaded successfully');
+        console.log('🎵 Background music loaded successfully and ready to play');
       });
+      
       this.backgroundMusic.addEventListener('error', (e) => {
-        console.warn('🎵 Background music failed to load:', e);
+        console.error('🎵 Background music failed to load:', e);
+        console.error('🎵 Audio error details:', {
+          error: e.target.error,
+          networkState: e.target.networkState,
+          readyState: e.target.readyState,
+          src: e.target.src
+        });
       });
+      
+      this.backgroundMusic.addEventListener('play', () => {
+        console.log('🎵 Music started playing');
+      });
+      
+      this.backgroundMusic.addEventListener('pause', () => {
+        console.log('🎵 Music paused');
+      });
+      
+      console.log('🎵 Audio element created, src:', this.backgroundMusic.src);
+      console.log('🎵 PUBLIC_URL:', process.env.PUBLIC_URL);
+      console.log('🎵 Full audio path:', `${process.env.PUBLIC_URL}/happyfarm.mp3`);
     } catch (error) {
-      console.warn('Could not initialize background music:', error);
+      console.error('Could not initialize background music:', error);
     }
   }
 
   startBackgroundMusic() {
-    if (!this.backgroundMusic || !this.backgroundMusicEnabled || this.isMuted) return;
+    console.log('🎵 Attempting to start background music...', {
+      hasAudio: !!this.backgroundMusic,
+      enabled: this.backgroundMusicEnabled,
+      muted: this.isMuted,
+      readyState: this.backgroundMusic?.readyState,
+      networkState: this.backgroundMusic?.networkState
+    });
+    
+    if (!this.backgroundMusic || !this.backgroundMusicEnabled || this.isMuted) {
+      console.log('🎵 Music start blocked:', {
+        noAudio: !this.backgroundMusic,
+        disabled: !this.backgroundMusicEnabled,
+        muted: this.isMuted
+      });
+      return;
+    }
+    
     try {
+      // Clear any existing fade
+      if (this.fadeInterval) {
+        clearInterval(this.fadeInterval);
+        this.isFading = false;
+      }
+      
       this.backgroundMusic.currentTime = 0;
-      this.backgroundMusic.volume = this.musicVolume;
+      console.log('🎵 Calling play()...');
       const playPromise = this.backgroundMusic.play();
       if (playPromise !== undefined) {
         playPromise.then(() => {
-          console.log('🎵 Background music started');
+          console.log('🎵 Background music started, beginning 2-second fade-in...');
+          this.fadeIn(2000); // 2-second fade-in
         }).catch(error => {
-          console.warn('Could not start background music:', error);
+          console.error('🎵 Could not start background music - Promise rejected:', error);
+          console.error('🎵 Error name:', error.name);
+          console.error('🎵 Error message:', error.message);
         });
       }
     } catch (error) {
-      console.warn('Error starting background music:', error);
+      console.error('🎵 Error starting background music - Exception:', error);
     }
   }
 
   stopBackgroundMusic() {
     if (this.backgroundMusic) {
       try {
-        this.backgroundMusic.pause();
-        this.backgroundMusic.currentTime = 0;
-        console.log('🎵 Background music stopped');
+        // Clear any existing fade
+        if (this.fadeInterval) {
+          clearInterval(this.fadeInterval);
+          this.isFading = false;
+        }
+        
+        console.log('🎵 Beginning 2-second fade-out...');
+        this.fadeOut(2000); // 2-second fade-out
       } catch (error) {
         console.warn('Error stopping background music:', error);
       }
@@ -90,12 +152,71 @@ class SoundManager {
     return this.backgroundMusicEnabled;
   }
 
-  setMusicVolume(volume) {
-    this.musicVolume = Math.max(0, Math.min(1, volume));
-    if (this.backgroundMusic) {
+  setVolume(volume) {
+    this.musicVolume = Math.max(0, Math.min(1, volume)); // Clamp between 0 and 1
+    if (this.backgroundMusic && !this.isFading) {
+      // Only update volume immediately if not currently fading
       this.backgroundMusic.volume = this.musicVolume;
     }
+    console.log('🎵 Volume set to:', Math.round(this.musicVolume * 100) + '%');
   }
+
+  getVolume() {
+    return this.musicVolume;
+  }
+
+  fadeIn(duration = 2000) {
+    if (!this.backgroundMusic || this.isFading) return;
+    
+    this.isFading = true;
+    const targetVolume = this.musicVolume;
+    const steps = 50; // Number of volume steps
+    const stepTime = duration / steps;
+    const volumeStep = targetVolume / steps;
+    let currentStep = 0;
+    
+    // Start from 0 volume
+    this.backgroundMusic.volume = 0;
+    
+    this.fadeInterval = setInterval(() => {
+      currentStep++;
+      const newVolume = Math.min(volumeStep * currentStep, targetVolume);
+      this.backgroundMusic.volume = newVolume;
+      
+      if (currentStep >= steps || newVolume >= targetVolume) {
+        clearInterval(this.fadeInterval);
+        this.backgroundMusic.volume = targetVolume;
+        this.isFading = false;
+        console.log('🎵 Fade-in complete at', Math.round(targetVolume * 100) + '%');
+      }
+    }, stepTime);
+  }
+
+  fadeOut(duration = 2000) {
+    if (!this.backgroundMusic || this.isFading) return;
+    
+    this.isFading = true;
+    const startVolume = this.backgroundMusic.volume;
+    const steps = 50; // Number of volume steps
+    const stepTime = duration / steps;
+    const volumeStep = startVolume / steps;
+    let currentStep = 0;
+    
+    this.fadeInterval = setInterval(() => {
+      currentStep++;
+      const newVolume = Math.max(startVolume - (volumeStep * currentStep), 0);
+      this.backgroundMusic.volume = newVolume;
+      
+      if (currentStep >= steps || newVolume <= 0) {
+        clearInterval(this.fadeInterval);
+        this.backgroundMusic.volume = 0;
+        this.backgroundMusic.pause();
+        this.isFading = false;
+        console.log('🎵 Fade-out complete, music paused');
+      }
+    }, stepTime);
+  }
+
 
   playClickSound() {
     if (!this.audioContext || this.isMuted) return;
@@ -315,6 +436,12 @@ function App() {
     const saved = localStorage.getItem('chickenEmpireState');
     return saved ? true : false;
   });
+  
+  // 🎮 NEW: Lobby State - Game enters lobby before main game
+  const [inLobby, setInLobby] = useState(true);
+  const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState('');
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   // Game State
   const [gameState, setGameState] = useState(() => {
@@ -357,7 +484,9 @@ function App() {
         isActive: false,
         feedThreshold: 50, // Buy feed when below this amount
         lastPurchaseTime: 0
-      }
+      },
+      // Milestone tracking
+      reachedMilestones: []
     };
     
     if (saved) {
@@ -372,7 +501,8 @@ function App() {
         activeOrders: parsedState.activeOrders || [],
         completedOrders: parsedState.completedOrders || 0,
         restaurantUnlocked: parsedState.restaurantUnlocked || false,
-        autoFeeder: parsedState.autoFeeder || defaultState.autoFeeder
+        autoFeeder: parsedState.autoFeeder || defaultState.autoFeeder,
+        reachedMilestones: parsedState.reachedMilestones || []
       };
     }
     
@@ -383,9 +513,34 @@ function App() {
   const [showTransactions, setShowTransactions] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [playerName, setPlayerName] = useState('');
+  const [currentSaveName, setCurrentSaveName] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [authMode, setAuthMode] = useState('login'); // 'login', 'register', 'reset'
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authUsername, setAuthUsername] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [savedGamesData, setSavedGamesData] = useState({});
   const [floatingTexts, setFloatingTexts] = useState([]);
   const [musicEnabled, setMusicEnabled] = useState(true);
+  const [musicVolume, setMusicVolume] = useState(5); // Volume as percentage (0-10)
   const [gameFrozen, setGameFrozen] = useState(false);
+  
+  // Interactive Effects State
+  const [celebrations, setCelebrations] = useState([]);
+  const [warningEffects, setWarningEffects] = useState({
+    lowFeed: false,
+    lowChickens: false,
+    noEggs: false,
+    lowMoney: false
+  });
   
   // Animated Chickens State
   const [animatedChickens, setAnimatedChickens] = useState([]);
@@ -456,6 +611,23 @@ function App() {
 
   // Initialize game and sound
   useEffect(() => {
+    // Initialize Firebase game manager
+    firebaseGameManager.onUserChange = (user) => {
+      setCurrentUser(user);
+      if (user) {
+        showFloatingText(`👋 Welcome back, ${user.displayName || user.email}!`, colors.green);
+      }
+    };
+
+    firebaseGameManager.onConnectionChange = (online) => {
+      setIsOnline(online);
+      if (online) {
+        showFloatingText('🌐 Back online - syncing data...', colors.green);
+      } else {
+        showFloatingText('📱 Playing offline', colors.orange);
+      }
+    };
+
     initGame();
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
@@ -583,6 +755,17 @@ function App() {
           }
         }
 
+        // Check for milestone achievements
+        milestones.forEach(milestone => {
+          if (newState.money >= milestone && !newState.reachedMilestones.includes(milestone)) {
+            newState.reachedMilestones.push(milestone);
+            setTimeout(() => createCelebration(milestone), 100);
+          }
+        });
+        
+        // Check for warning conditions
+        setTimeout(() => checkWarningEffects(newState), 50);
+        
         return newState;
       });
     }, 100);
@@ -1286,6 +1469,346 @@ function App() {
     showFloatingText(newState ? '🎵 Music On' : '🎵 Music Off');
   };
 
+  const handleVolumeChange = (e) => {
+    const volume = parseInt(e.target.value);
+    setMusicVolume(volume);
+    soundManager.setVolume(volume / 100); // Convert percentage to 0-1 range (max 0.1)
+    showFloatingText(`🎵 Volume ${volume}%`);
+  };
+
+  // 🔐 Enhanced Authentication Handlers
+  const clearAuthMessages = () => {
+    setAuthError('');
+    setAuthSuccess('');
+    setResetEmailSent(false);
+  };
+
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    clearAuthMessages();
+    
+    // Validate inputs
+    if (!authEmail || !authEmail.includes('@')) {
+      setAuthError('Please enter a valid email address');
+      return;
+    }
+    
+    if (authMode !== 'reset' && (!authPassword || authPassword.length < 6)) {
+      setAuthError('Password must be at least 6 characters long');
+      return;
+    }
+    
+    if (authMode === 'register' && (!authUsername || authUsername.trim().length < 2)) {
+      setAuthError('Username must be at least 2 characters long');
+      return;
+    }
+
+    setAuthLoading(true);
+    
+    try {
+      let result;
+      
+      if (authMode === 'register') {
+        result = await firebaseGameManager.registerUser(authEmail, authPassword, authUsername.trim());
+        if (result.success) {
+          setAuthSuccess('Account created successfully! Welcome to Chicken Empire!');
+          setTimeout(() => {
+            setShowAuthModal(false);
+            clearAuthMessages();
+          }, 2000);
+        } else {
+          setAuthError(result.error);
+        }
+      } else if (authMode === 'login') {
+        result = await firebaseGameManager.loginUser(authEmail, authPassword);
+        if (result.success) {
+          setAuthSuccess('Welcome back! Loading your empire...');
+          setTimeout(() => {
+            setShowAuthModal(false);
+            clearAuthMessages();
+          }, 1500);
+        } else {
+          setAuthError(result.error);
+        }
+      } else if (authMode === 'reset') {
+        result = await firebaseGameManager.resetPassword(authEmail);
+        if (result.success) {
+          setResetEmailSent(true);
+          setAuthSuccess(result.message);
+        } else {
+          setAuthError(result.error);
+        }
+      }
+    } catch (error) {
+      setAuthError('An unexpected error occurred. Please try again.');
+      console.error('Auth error:', error);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const switchAuthMode = (mode) => {
+    setAuthMode(mode);
+    clearAuthMessages();
+    setAuthPassword('');
+    if (mode !== 'register') {
+      setAuthUsername('');
+    }
+  };
+
+  // 🎮 Lobby Handlers
+  const enterGame = () => {
+    setInLobby(false);
+    if (!gameStarted) {
+      setGameStarted(true);
+      localStorage.setItem('chickenEmpire_gameStarted', 'true');
+    }
+  };
+
+  const returnToLobby = () => {
+    setInLobby(true);
+  };
+
+  const openAuthModal = (mode = 'login') => {
+    setAuthMode(mode);
+    clearAuthMessages();
+    setShowAuthModal(true);
+  };
+
+  const closeAuthModal = () => {
+    setShowAuthModal(false);
+    clearAuthMessages();
+    setAuthEmail('');
+    setAuthPassword('');
+    setAuthUsername('');
+  };
+
+  // Milestone celebration system
+  const milestones = [1000, 2000, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000];
+  
+  const createCelebration = (milestone) => {
+    const celebration = {
+      id: Date.now() + Math.random(),
+      milestone,
+      timestamp: Date.now(),
+      particles: Array.from({length: 20}, (_, i) => ({
+        id: i,
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        vx: (Math.random() - 0.5) * 4,
+        vy: (Math.random() - 0.5) * 4,
+        color: ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'][Math.floor(Math.random() * 6)],
+        emoji: ['🎉', '💰', '🏆', '⭐', '🎊', '🌟'][Math.floor(Math.random() * 6)]
+      }))
+    };
+    
+    setCelebrations(prev => [...prev, celebration]);
+    
+    // Remove celebration after 4 seconds
+    setTimeout(() => {
+      setCelebrations(prev => prev.filter(c => c.id !== celebration.id));
+    }, 4000);
+    
+    console.log(`🎉 Milestone reached: $${milestone.toLocaleString()}!`);
+    soundManager.playSuccessSound();
+  };
+
+  const checkWarningEffects = (state) => {
+    const newWarnings = {
+      lowFeed: state.feed < (state.chickens + state.goldenChickens) * 1.5,
+      lowChickens: state.chickens + state.goldenChickens < 3,
+      noEggs: state.eggs < 1,
+      lowMoney: state.money < 50
+    };
+    
+    setWarningEffects(newWarnings);
+  };
+
+  // Save/Load System
+  const loadLeaderboardData = async () => {
+    setLeaderboardLoading(true);
+    try {
+      const data = await generateRealLeaderboard();
+      setLeaderboardData(data);
+    } catch (error) {
+      console.error('Failed to load leaderboard:', error);
+      setLeaderboardData([]);
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  };
+
+  const loadSavedGamesData = async () => {
+    try {
+      const data = await firebaseGameManager.getAllSavedGames();
+      setSavedGamesData(data);
+    } catch (error) {
+      console.error('Failed to load saved games:', error);
+      setSavedGamesData({});
+    }
+  };
+
+  const getAllSavedGames = () => {
+    return savedGamesData;
+  };
+
+  const getStorageInfo = () => {
+    let chickenEmpireSize = 0;
+    let totalSaves = 0;
+    
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      const value = localStorage.getItem(key);
+      
+      if (key && key.startsWith('chickenEmpire_')) {
+        chickenEmpireSize += key.length + value.length;
+        if (key.startsWith('chickenEmpire_save_')) {
+          totalSaves++;
+        }
+      }
+    }
+    
+    // Convert to KB
+    const sizeInKB = Math.round(chickenEmpireSize / 1024 * 100) / 100;
+    const estimatedLimit = 5120; // 5MB in KB (conservative estimate)
+    const usagePercent = Math.round((sizeInKB / estimatedLimit) * 100);
+    
+    return {
+      sizeInKB,
+      totalSaves,
+      usagePercent,
+      estimatedLimit,
+      remainingKB: estimatedLimit - sizeInKB
+    };
+  };
+
+  const saveGameWithName = async (name) => {
+    if (!name || name.trim() === '') {
+      showFloatingText('❌ Please enter a valid name!', colors.red);
+      return;
+    }
+
+    const cleanName = name.trim().substring(0, 20); // Limit name length
+    setAuthLoading(true);
+    
+    const saveData = {
+      ...gameState,
+      playerName: cleanName,
+      savedAt: new Date().toISOString(),
+      playTime: Date.now() - gameState.gameStartTime || 0
+    };
+
+    try {
+      const result = await firebaseGameManager.saveGameData(saveData, cleanName);
+      
+      if (result.success) {
+        setCurrentSaveName(cleanName);
+        setShowSaveModal(false);
+        
+        if (result.location === 'cloud') {
+          showFloatingText(`☁️ Game saved as "${cleanName}"!`, colors.green);
+        } else if (result.location === 'local_fallback') {
+          showFloatingText(`💾 Saved locally as "${cleanName}" - will sync when online`, colors.orange);
+        } else {
+          showFloatingText(`💾 Game saved as "${cleanName}"!`, colors.green);
+        }
+        
+        soundManager.playSuccessSound();
+      } else {
+        showFloatingText(`❌ Save failed: ${result.error}`, colors.red);
+      }
+    } catch (error) {
+      showFloatingText('❌ Save failed! Try again.', colors.red);
+      console.error('Save failed:', error);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const loadGameByName = async (name) => {
+    setAuthLoading(true);
+    
+    try {
+      const saveData = await firebaseGameManager.loadGameData(name);
+      
+      if (saveData) {
+        setGameState(saveData);
+        setCurrentSaveName(name);
+        setShowLoadModal(false);
+        
+        if (firebaseGameManager.isAuthenticated()) {
+          showFloatingText(`☁️ Loaded "${name}"'s game from cloud!`, colors.green);
+        } else {
+          showFloatingText(`📂 Loaded "${name}"'s game!`, colors.green);
+        }
+        
+        soundManager.playSuccessSound();
+      } else {
+        showFloatingText('❌ Save file not found!', colors.red);
+      }
+    } catch (error) {
+      showFloatingText('❌ Failed to load game!', colors.red);
+      console.error('Load failed:', error);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const deleteSavedGame = async (name) => {
+    setAuthLoading(true);
+    
+    try {
+      const result = await firebaseGameManager.deleteSavedGame(name);
+      
+      if (result.success) {
+        if (result.location === 'cloud') {
+          showFloatingText(`☁️ Deleted "${name}"'s save from cloud!`, colors.orange);
+        } else {
+          showFloatingText(`🗑️ Deleted "${name}"'s save!`, colors.orange);
+        }
+      } else {
+        showFloatingText(`❌ Delete failed: ${result.error}`, colors.red);
+      }
+    } catch (error) {
+      showFloatingText('❌ Delete failed!', colors.red);
+      console.error('Delete failed:', error);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const generateRealLeaderboard = async () => {
+    try {
+      // Get global leaderboard from Firebase
+      const globalLeaderboard = await firebaseGameManager.getGlobalLeaderboard();
+      
+      if (globalLeaderboard.length > 0) {
+        return globalLeaderboard.slice(0, 10); // Top 10
+      }
+      
+      // Fallback to local saves if no cloud data
+      const savedGames = getAllSavedGames();
+      const leaderboardData = Object.entries(savedGames)
+        .map(([name, data]) => ({
+          name: name,
+          username: name,
+          money: data.money || 0,
+          chickens: (data.chickens || 0) + (data.goldenChickens || 0),
+          products: Object.values(data.products || {}).reduce((sum, count) => sum + count, 0),
+          lastPlayed: data.savedAt || new Date().toISOString(),
+          playTime: Math.floor((data.playTime || 0) / 1000 / 60), // Convert to minutes
+          isCurrentUser: false
+        }))
+        .sort((a, b) => b.money - a.money) // Sort by money descending
+        .slice(0, 10); // Top 10
+
+      return leaderboardData;
+    } catch (error) {
+      console.error('Failed to generate leaderboard:', error);
+      return [];
+    }
+  };
+
   const toggleGameFreeze = () => {
     const newFrozenState = !gameFrozen;
     setGameFrozen(newFrozenState);
@@ -1472,24 +1995,25 @@ function App() {
     });
   };
 
-  // Fake Leaderboard Data
-  const leaderboardData = [
-    { username: "EggMaster9000", valuation: 2847000 },
-    { username: "ChickenKing", valuation: 2456000 },
-    { username: "GoldenFarmer", valuation: 2234000 },
-    { username: "PoultryBoss", valuation: 2012000 },
-    { username: "EggTycoon", valuation: 1889000 },
-    { username: "FeatherMogul", valuation: 1767000 },
-    // ... 44 more entries
-    { username: "FarmStarter", valuation: 402000 }
-  ];
+  // Load leaderboard when modal is opened
+  useEffect(() => {
+    if (showLeaderboard) {
+      loadLeaderboardData();
+    }
+  }, [showLeaderboard]);
 
-  // Show start screen if game hasn't started
-  if (!gameStarted) {
-  return (
+  // Load saved games when load modal is opened
+  useEffect(() => {
+    if (showLoadModal) {
+      loadSavedGamesData();
+    }
+  }, [showLoadModal]);
+
+  // Show lobby if in lobby mode or game hasn't started
+  if (inLobby || !gameStarted) {
+    return (
       <div style={{ 
-        background: colors.sectionBg,
-        padding: '16px', 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         minHeight: '100vh',
         fontFamily: 'Alan Sans, Arial, sans-serif',
         position: 'relative',
@@ -1497,64 +2021,621 @@ function App() {
         boxSizing: 'border-box',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        overflow: 'hidden'
       }}>
+        {/* Animated Background */}
         <div style={{
-          background: colors.cardBg,
-          borderRadius: colors.borderRadiusLarge,
-          padding: '40px',
-          boxShadow: colors.shadowLarge,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.1"%3E%3Ccircle cx="30" cy="30" r="2"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+          animation: 'float 20s ease-in-out infinite',
+          opacity: 0.3
+        }} />
+
+        {/* Main Lobby Container */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: '24px',
+          padding: '48px',
+          maxWidth: '600px',
+          width: '90%',
           textAlign: 'center',
-          maxWidth: '500px'
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          position: 'relative',
+          overflow: 'hidden'
         }}>
-          <div style={{ 
-            fontSize: '48px',
-            marginBottom: '20px'
+          {/* Game Logo */}
+          <div style={{
+            marginBottom: '32px',
+            position: 'relative'
           }}>
-            🐔
-          </div>
-          <h1 style={{
-            fontSize: '32px',
-            fontWeight: '800',
-            fontFamily: 'Alan Sans, Arial, sans-serif',
-            color: colors.textPrimary,
-            margin: '0 0 10px 0'
-          }}>
-            CHICKEN EMPIRE TYCOON
-          </h1>
-          <p style={{
-            fontSize: '16px',
-            fontFamily: 'Alan Sans, Arial, sans-serif',
-            color: colors.textSecondary,
-            margin: '0 0 30px 0',
-            lineHeight: '1.5'
-          }}>
-            Build your chicken empire from scratch! Start with 3 chickens, $20, and 30 units of feed. Expand your farm, unlock recipes, and become the ultimate chicken tycoon!
-          </p>
-          <button 
-            onClick={startNewGame}
-            style={{
-              background: `linear-gradient(135deg, ${colors.green} 0%, ${colors.greenDark} 100%)`,
-              color: colors.textLight,
-              border: 'none',
-              borderRadius: colors.borderRadius,
-              padding: '16px 32px',
+            <h1 style={{
+              fontSize: '48px',
+              fontWeight: 'bold',
+              margin: '0 0 16px 0',
+              background: 'linear-gradient(135deg, #ff6b6b, #ffd93d, #6bcf7f)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              textShadow: '0 4px 8px rgba(0,0,0,0.1)'
+            }}>
+              🐔 CHICKEN EMPIRE 🐔
+            </h1>
+            <p style={{
               fontSize: '18px',
-              fontWeight: '700',
-              fontFamily: 'Alan Sans, Arial, sans-serif',
-              cursor: 'pointer',
-              boxShadow: colors.shadowLarge,
-              transition: 'all 0.2s ease',
-              textTransform: 'uppercase',
-              letterSpacing: '1px'
-            }}
-          >
-            🚀 Start Game
-          </button>
+              color: '#666',
+              margin: '0',
+              fontStyle: 'italic'
+            }}>
+              Build your feathered fortune from scratch!
+            </p>
+          </div>
+
+          {/* User Status */}
+          {currentUser ? (
+            <div style={{
+              background: 'linear-gradient(135deg, #4CAF50, #45a049)',
+              color: 'white',
+              padding: '16px 24px',
+              borderRadius: '16px',
+              marginBottom: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+              boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)'
+            }}>
+              <span style={{ fontSize: '20px' }}>👤</span>
+              <span style={{ fontSize: '16px', fontWeight: 'bold' }}>
+                Welcome back, {currentUser.displayName || currentUser.email}!
+              </span>
+            </div>
+          ) : (
+            <div style={{
+              background: 'linear-gradient(135deg, #2196F3, #1976D2)',
+              color: 'white',
+              padding: '16px 24px',
+              borderRadius: '16px',
+              marginBottom: '32px',
+              boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)'
+            }}>
+              <p style={{ margin: '0', fontSize: '16px' }}>
+                Sign in to save your progress and compete on the leaderboard!
+              </p>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            marginBottom: '32px'
+          }}>
+            {/* Start Game Button */}
+            <button
+              onClick={enterGame}
+              style={{
+                background: 'linear-gradient(135deg, #FF6B6B, #FF5722)',
+                color: 'white',
+                border: 'none',
+                padding: '20px 32px',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                borderRadius: '16px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 8px 24px rgba(255, 107, 107, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px) scale(1.05)';
+                e.target.style.boxShadow = '0 12px 32px rgba(255, 107, 107, 0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0) scale(1)';
+                e.target.style.boxShadow = '0 8px 24px rgba(255, 107, 107, 0.4)';
+              }}
+            >
+              🚀 {gameStarted ? 'CONTINUE EMPIRE' : 'START NEW EMPIRE'}
+            </button>
+
+            {/* Authentication Buttons */}
+            {!currentUser ? (
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                flexWrap: 'wrap'
+              }}>
+                <button
+                  onClick={() => openAuthModal('login')}
+                  style={{
+                    background: 'linear-gradient(135deg, #4CAF50, #45a049)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '16px 24px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    flex: 1,
+                    minWidth: '140px',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 16px rgba(76, 175, 80, 0.5)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.3)';
+                  }}
+                >
+                  🔑 LOGIN
+                </button>
+                <button
+                  onClick={() => openAuthModal('register')}
+                  style={{
+                    background: 'linear-gradient(135deg, #2196F3, #1976D2)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '16px 24px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    flex: 1,
+                    minWidth: '140px',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 16px rgba(33, 150, 243, 0.5)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(33, 150, 243, 0.3)';
+                  }}
+                >
+                  📝 REGISTER
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={async () => {
+                  const result = await firebaseGameManager.logoutUser();
+                  if (result.success) {
+                    setCurrentUser(null);
+                  }
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #FF9800, #F57C00)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '16px 24px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 12px rgba(255, 152, 0, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 6px 16px rgba(255, 152, 0, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(255, 152, 0, 0.3)';
+                }}
+              >
+                🚪 LOGOUT
+              </button>
+            )}
+          </div>
+
+          {/* Game Features Preview */}
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.05)',
+            borderRadius: '16px',
+            padding: '24px',
+            marginTop: '24px'
+          }}>
+            <h3 style={{
+              margin: '0 0 16px 0',
+              color: '#333',
+              fontSize: '18px',
+              fontWeight: 'bold'
+            }}>
+              🌟 Game Features
+            </h3>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+              gap: '12px',
+              fontSize: '14px',
+              color: '#666'
+            }}>
+              <div>🐔 Raise Chickens</div>
+              <div>🥚 Collect Eggs</div>
+              <div>👨‍🍳 Cook Recipes</div>
+              <div>🏪 Run Restaurants</div>
+              <div>💰 Build Fortune</div>
+              <div>🏆 Global Leaderboard</div>
+            </div>
+          </div>
         </div>
+
+        {/* Enhanced Authentication Modal */}
+        {showAuthModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(8px)'
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '24px',
+              padding: '48px',
+              maxWidth: '450px',
+              width: '90%',
+              position: 'relative',
+              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
+              animation: 'modalSlideIn 0.3s ease-out'
+            }}>
+              {/* Close Button */}
+              <button
+                onClick={closeAuthModal}
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#666',
+                  padding: '8px',
+                  borderRadius: '50%',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#f0f0f0';
+                  e.target.style.transform = 'rotate(90deg)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'none';
+                  e.target.style.transform = 'rotate(0)';
+                }}
+              >
+                ×
+              </button>
+
+              {/* Modal Header */}
+              <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                <h2 style={{
+                  margin: '0 0 8px 0',
+                  fontSize: '28px',
+                  fontWeight: 'bold',
+                  color: '#333'
+                }}>
+                  {authMode === 'login' ? '🔑 Welcome Back!' : 
+                   authMode === 'register' ? '📝 Join the Empire!' : 
+                   '🔒 Reset Password'}
+                </h2>
+                <p style={{
+                  margin: '0',
+                  color: '#666',
+                  fontSize: '16px'
+                }}>
+                  {authMode === 'login' ? 'Sign in to continue your chicken empire' : 
+                   authMode === 'register' ? 'Create your account to get started' : 
+                   'Enter your email to reset your password'}
+                </p>
+              </div>
+
+              {/* Success/Error Messages */}
+              {authSuccess && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #4CAF50, #45a049)',
+                  color: 'white',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  marginBottom: '24px',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)'
+                }}>
+                  ✅ {authSuccess}
+                </div>
+              )}
+
+              {authError && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #f44336, #d32f2f)',
+                  color: 'white',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  marginBottom: '24px',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  boxShadow: '0 4px 12px rgba(244, 67, 54, 0.3)'
+                }}>
+                  ❌ {authError}
+                </div>
+              )}
+
+              {resetEmailSent && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #2196F3, #1976D2)',
+                  color: 'white',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  marginBottom: '24px',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)'
+                }}>
+                  📧 Check your email for password reset instructions!
+                </div>
+              )}
+
+              {/* Auth Form */}
+              <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Email Input */}
+                <div>
+                  <label style={{
+                    display: 'block',
+                    color: '#333',
+                    fontWeight: 'bold',
+                    marginBottom: '8px',
+                    fontSize: '14px'
+                  }}>
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '16px',
+                      border: '2px solid #e0e0e0',
+                      borderRadius: '12px',
+                      fontSize: '16px',
+                      fontFamily: 'inherit',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = '#2196F3'}
+                    onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+                  />
+                </div>
+
+                {/* Username Input (Register only) */}
+                {authMode === 'register' && (
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      color: '#333',
+                      fontWeight: 'bold',
+                      marginBottom: '8px',
+                      fontSize: '14px'
+                    }}>
+                      Username
+                    </label>
+                    <input
+                      type="text"
+                      value={authUsername}
+                      onChange={(e) => setAuthUsername(e.target.value)}
+                      placeholder="Choose a username"
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '16px',
+                        border: '2px solid #e0e0e0',
+                        borderRadius: '12px',
+                        fontSize: '16px',
+                        fontFamily: 'inherit',
+                        transition: 'border-color 0.3s ease',
+                        boxSizing: 'border-box'
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = '#2196F3'}
+                      onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+                    />
+                  </div>
+                )}
+
+                {/* Password Input (Login/Register only) */}
+                {authMode !== 'reset' && (
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      color: '#333',
+                      fontWeight: 'bold',
+                      marginBottom: '8px',
+                      fontSize: '14px'
+                    }}>
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '16px',
+                        border: '2px solid #e0e0e0',
+                        borderRadius: '12px',
+                        fontSize: '16px',
+                        fontFamily: 'inherit',
+                        transition: 'border-color 0.3s ease',
+                        boxSizing: 'border-box'
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = '#2196F3'}
+                      onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+                    />
+                  </div>
+                )}
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  style={{
+                    background: authLoading ? '#ccc' : 
+                      authMode === 'login' ? 'linear-gradient(135deg, #4CAF50, #45a049)' :
+                      authMode === 'register' ? 'linear-gradient(135deg, #2196F3, #1976D2)' :
+                      'linear-gradient(135deg, #FF9800, #F57C00)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '18px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    borderRadius: '12px',
+                    cursor: authLoading ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  {authLoading ? (
+                    <>⏳ Processing...</>
+                  ) : (
+                    <>
+                      {authMode === 'login' ? '🔑 LOGIN' : 
+                       authMode === 'register' ? '📝 CREATE ACCOUNT' : 
+                       '📧 SEND RESET EMAIL'}
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Mode Switcher */}
+              <div style={{
+                marginTop: '24px',
+                textAlign: 'center',
+                fontSize: '14px',
+                color: '#666'
+              }}>
+                {authMode === 'login' ? (
+                  <>
+                    Don't have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => switchAuthMode('register')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#2196F3',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Sign up here
+                    </button>
+                    <br /><br />
+                    Forgot your password?{' '}
+                    <button
+                      type="button"
+                      onClick={() => switchAuthMode('reset')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#FF9800',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Reset it here
+                    </button>
+                  </>
+                ) : authMode === 'register' ? (
+                  <>
+                    Already have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => switchAuthMode('login')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#4CAF50',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Login here
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Remember your password?{' '}
+                    <button
+                      type="button"
+                      onClick={() => switchAuthMode('login')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#4CAF50',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Login here
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Lobby Animation Styles */}
+        <style jsx>{`
+          @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+          }
+          
+          @keyframes modalSlideIn {
+            0% { opacity: 0; transform: translateY(-50px) scale(0.9); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+          }
+        `}</style>
       </div>
     );
   }
+
+  // Main game return statement
 
   return (
     <div style={{
@@ -1656,23 +2737,83 @@ function App() {
               🐔 CHICKEN EMPIRE TYCOON
             </h1>
             
+            {/* Return to Lobby Button */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: window.innerWidth >= 640 ? 'flex-start' : 'center',
+              marginBottom: '12px'
+            }}>
+              <button 
+                onClick={returnToLobby}
+                onMouseDown={(e) => e.target.style.animation = 'buttonPress 0.1s ease'}
+                onMouseUp={(e) => e.target.style.animation = ''}
+                onMouseLeave={(e) => {
+                  e.target.style.animation = '';
+                  e.target.style.transform = 'translateY(0) scale(1)';
+                  e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.transform = 'translateY(-2px) scale(1.02)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(103, 58, 183, 0.3)';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.transform = 'translateY(0) scale(1)';
+                  e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #673AB7, #512DA8)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                🏠 LOBBY
+              </button>
+            </div>
+            
             <div style={{ 
               display: 'flex', 
               gap: '8px',
               flexWrap: 'wrap',
               justifyContent: 'center'
             }}>
-              <button onClick={() => setShowResetModal(true)} style={{
-                background: 'rgba(255, 107, 53, 0.1)',
-                color: colors.orange, 
-                border: `1px solid rgba(255, 107, 53, 0.2)`,
-                ...typography.button, 
-                fontSize: '10px',
-                padding: '8px 12px',
-                borderRadius: colors.borderRadius, 
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}>
+              <button 
+                onClick={() => setShowResetModal(true)} 
+                onMouseDown={(e) => e.target.style.animation = 'buttonPress 0.1s ease'}
+                onMouseUp={(e) => e.target.style.animation = ''}
+                onMouseLeave={(e) => {
+                  e.target.style.animation = '';
+                  e.target.style.transform = 'translateY(0) scale(1)';
+                  e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.transform = 'translateY(-2px) scale(1.02)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(255, 107, 53, 0.2)';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.transform = 'translateY(0) scale(1)';
+                  e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                }}
+                style={{
+                  background: 'rgba(255, 107, 53, 0.1)',
+                  color: colors.orange, 
+                  border: `1px solid rgba(255, 107, 53, 0.2)`,
+                  ...typography.button, 
+                  fontSize: '10px',
+                  padding: '8px 12px',
+                  borderRadius: colors.borderRadius, 
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}>
                 🔄 Reset
               </button>
               
@@ -1703,6 +2844,49 @@ function App() {
               }}>
                 🏆 Board
               </button>
+
+              <button onClick={() => setShowSaveModal(true)} style={{
+                background: 'rgba(59, 130, 246, 0.1)',
+                color: '#3b82f6',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                ...typography.button,
+                fontSize: '10px',
+                padding: '8px 12px',
+                borderRadius: colors.borderRadius,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}>
+                💾 Save
+              </button>
+
+              <button onClick={() => setShowLoadModal(true)} style={{
+                background: 'rgba(147, 51, 234, 0.1)',
+                color: '#9333ea',
+                border: '1px solid rgba(147, 51, 234, 0.2)',
+                ...typography.button,
+                fontSize: '10px',
+                padding: '8px 12px',
+                borderRadius: colors.borderRadius,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}>
+                📂 Load
+              </button>
+
+              {/* Server Authentication Button */}
+              <button onClick={() => setShowAuthModal(true)} style={{
+                background: currentUser ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+                color: currentUser ? colors.green : '#6366f1',
+                border: currentUser ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(99, 102, 241, 0.2)',
+                ...typography.button,
+                fontSize: '10px',
+                padding: '8px 12px',
+                borderRadius: colors.borderRadius,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}>
+                {currentUser ? `👤 ${currentUser.displayName || 'User'}` : '🌐 Login'}
+              </button>
               
               <button onClick={toggleMusic} style={{
                 background: musicEnabled 
@@ -1721,7 +2905,53 @@ function App() {
               }}>
                 🎵 Music
               </button>
-              
+
+              {/* Volume Slider */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                background: 'rgba(16, 185, 129, 0.1)',
+                borderRadius: colors.borderRadius,
+                border: `1px solid rgba(16, 185, 129, 0.2)`,
+              }}>
+                <span style={{
+                  ...typography.button,
+                  color: colors.green,
+                  fontSize: '10px',
+                  minWidth: '20px'
+                }}>
+                  🔊
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="10"
+                  value={musicVolume}
+                  onChange={handleVolumeChange}
+                  style={{
+                    width: '60px',
+                    height: '4px',
+                    background: `linear-gradient(to right, ${colors.green} 0%, ${colors.green} ${(musicVolume / 10) * 100}%, rgba(16, 185, 129, 0.2) ${(musicVolume / 10) * 100}%, rgba(16, 185, 129, 0.2) 100%)`,
+                    borderRadius: '2px',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'none',
+                    border: 'none',
+                  }}
+                />
+                <span style={{
+                  ...typography.button,
+                  color: colors.green,
+                  fontSize: '8px',
+                  minWidth: '25px'
+                }}>
+                  {musicVolume}%
+                </span>
+              </div>
+
               <button onClick={toggleGameFreeze} style={{
                 background: gameFrozen 
                   ? 'rgba(16, 185, 129, 0.1)' 
@@ -1839,32 +3069,718 @@ function App() {
                   background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer'
                 }}>×</button>
               </div>
-              <div style={{ padding: '20px', maxHeight: '400px', overflow: 'auto' }}>
-                {leaderboardData.slice(0, 10).map((player, index) => (
-                  <div key={index} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '12px', marginBottom: '8px',
-                    backgroundColor: index < 3 ? '#fef3c7' : '#f9fafb',
-                    borderRadius: '8px',
-                    border: index < 3 ? '2px solid #f59e0b' : 'none'
+                <div style={{ padding: '20px', maxHeight: '400px', overflow: 'auto' }}>
+                {leaderboardData.length === 0 ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px',
+                    color: colors.textSecondary,
+                    ...typography.bodyText
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ ...typography.cardHeader, minWidth: '30px' }}>
-                        {index + 1}{index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : ''}
-                      </span>
-                      <span style={{ ...typography.bodyText, fontWeight: index < 3 ? 'bold' : 'normal' }}>
-                        {player.username}
+                    🎮 No saved games yet!<br />
+                    Save your progress to appear on the leaderboard.
+                  </div>
+                ) : (
+                  leaderboardData.map((player, index) => (
+                    <div key={player.name} style={{
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      padding: '12px', 
+                      marginBottom: '8px',
+                      backgroundColor: index < 3 ? '#fef3c7' : '#f9fafb',
+                      borderRadius: '8px',
+                      border: index < 3 ? '2px solid #f59e0b' : '1px solid #e5e7eb'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ ...typography.cardHeader, minWidth: '30px' }}>
+                          {index + 1}{index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : ''}
+                        </span>
+                        <div>
+                          <div style={{ ...typography.bodyText, fontWeight: index < 3 ? 'bold' : 'normal' }}>
+                            {player.name}
+                          </div>
+                          <div style={{ 
+                            fontSize: '10px', 
+                            color: colors.textSecondary,
+                            fontFamily: 'Alan Sans, Arial, sans-serif'
+                          }}>
+                            🐔{player.chickens} • 🍳{player.products} • ⏱{player.playTime}min
+                          </div>
+                        </div>
+                      </div>
+                      <span style={{
+                        ...typography.bodyText,
+                        fontWeight: index < 3 ? 'bold' : 'normal',
+                        color: colors.success
+                      }}>
+                        ${player.money.toLocaleString()}
                       </span>
                     </div>
-                    <span style={{
-                      ...typography.bodyText,
-                      fontWeight: index < 3 ? 'bold' : 'normal',
-                      color: colors.success
-                    }}>
-                      ${player.valuation.toLocaleString()}
-                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Save Game Modal */}
+        {showSaveModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 100,
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <div style={{
+              background: colors.cardBg,
+              borderRadius: colors.borderRadiusLarge,
+              width: '90%', maxWidth: '450px',
+              overflow: 'hidden',
+              border: '3px solid #3b82f6',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
+            }}>
+              <div style={{
+                padding: '20px',
+                borderBottom: '1px solid #e5e7eb',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                color: 'white'
+              }}>
+                <h2 style={{ ...typography.sectionHeader, margin: 0, color: 'white' }}>
+                  💾 Save Your Game
+                </h2>
+                <p style={{ ...typography.bodyText, margin: '8px 0 0 0', opacity: 0.9 }}>
+                  Enter your name to save your progress
+                </p>
+              </div>
+              
+              <div style={{ padding: '24px' }}>
+                <input
+                  type="text"
+                  placeholder="Enter your player name..."
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && saveGameWithName(playerName)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: colors.borderRadius,
+                    fontSize: '14px',
+                    fontFamily: 'Alan Sans, Arial, sans-serif',
+                    marginBottom: '20px',
+                    outline: 'none'
+                  }}
+                  maxLength={20}
+                  autoFocus
+                />
+                
+                {currentSaveName && (
+                  <div style={{
+                    padding: '8px',
+                    background: '#fef3c7',
+                    border: '1px solid #f59e0b',
+                    borderRadius: colors.borderRadius,
+                    marginBottom: '16px',
+                    fontSize: '12px',
+                    color: '#92400e'
+                  }}>
+                    💡 Currently playing as: <strong>{currentSaveName}</strong>
                   </div>
-                ))}
+                )}
+                
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button 
+                    onClick={() => {
+                      setShowSaveModal(false);
+                      setPlayerName('');
+                    }}
+                    style={{
+                      background: 'rgba(107, 114, 128, 0.1)',
+                      color: colors.textSecondary,
+                      border: '1px solid rgba(107, 114, 128, 0.2)',
+                      borderRadius: colors.borderRadius,
+                      padding: '10px 16px',
+                      cursor: 'pointer',
+                      ...typography.button
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={() => saveGameWithName(playerName)}
+                    disabled={!playerName.trim()}
+                    style={{
+                      background: playerName.trim() 
+                        ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
+                        : colors.disabled,
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: colors.borderRadius,
+                      padding: '10px 20px',
+                      cursor: playerName.trim() ? 'pointer' : 'not-allowed',
+                      ...typography.button,
+                      fontWeight: '600'
+                    }}
+                  >
+                    💾 Save Game
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Load Game Modal */}
+        {showLoadModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 100,
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <div style={{
+              background: colors.cardBg,
+              borderRadius: colors.borderRadiusLarge,
+              width: '90%', maxWidth: '600px', maxHeight: '80%',
+              overflow: 'hidden',
+              border: '3px solid #9333ea',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
+            }}>
+              <div style={{
+                padding: '20px',
+                borderBottom: '1px solid #e5e7eb',
+                background: 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)',
+                color: 'white',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <h2 style={{ ...typography.sectionHeader, margin: 0, color: 'white' }}>
+                    📂 Load Saved Game
+                  </h2>
+                  <p style={{ ...typography.bodyText, margin: '4px 0 0 0', opacity: 0.9 }}>
+                    Select a saved game to continue playing
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowLoadModal(false)} 
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.2)', 
+                    border: 'none', 
+                    fontSize: '20px', 
+                    cursor: 'pointer',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    color: 'white'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div style={{ padding: '20px', maxHeight: '400px', overflow: 'auto' }}>
+                {Object.keys(getAllSavedGames()).length === 0 ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px',
+                    color: colors.textSecondary,
+                    ...typography.bodyText
+                  }}>
+                    🎮 No saved games found!<br />
+                    Save your current progress first.
+                  </div>
+                ) : (
+                  Object.entries(getAllSavedGames()).map(([name, saveData]) => (
+                    <div key={name} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '16px',
+                      marginBottom: '8px',
+                      backgroundColor: name === currentSaveName ? '#ede9fe' : '#f9fafb',
+                      borderRadius: '8px',
+                      border: name === currentSaveName ? '2px solid #9333ea' : '1px solid #e5e7eb'
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ 
+                          ...typography.cardHeader, 
+                          marginBottom: '4px',
+                          color: name === currentSaveName ? '#9333ea' : colors.textPrimary
+                        }}>
+                          {name} {name === currentSaveName && '(Current)'}
+                        </div>
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: colors.textSecondary,
+                          fontFamily: 'Alan Sans, Arial, sans-serif'
+                        }}>
+                          💰${saveData.money?.toLocaleString()} • 🐔{(saveData.chickens || 0) + (saveData.goldenChickens || 0)} • 
+                          📅{saveData.savedAt ? new Date(saveData.savedAt).toLocaleDateString() : 'Unknown'}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
+                        <button
+                          onClick={() => loadGameByName(name)}
+                          style={{
+                            background: 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: colors.borderRadius,
+                            padding: '6px 12px',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            fontFamily: 'Alan Sans, Arial, sans-serif'
+                          }}
+                        >
+                          📂 Load
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete "${name}"'s save file?`)) {
+                              deleteSavedGame(name);
+                              // Force re-render by toggling modal
+                              setShowLoadModal(false);
+                              setTimeout(() => setShowLoadModal(true), 100);
+                            }
+                          }}
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            color: '#dc2626',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            borderRadius: colors.borderRadius,
+                            padding: '6px 8px',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontFamily: 'Alan Sans, Arial, sans-serif'
+                          }}
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {/* Storage Usage Info */}
+                {(() => {
+                  const storageInfo = getStorageInfo();
+                  return (
+                    <div style={{
+                      marginTop: '16px',
+                      padding: '12px',
+                      background: storageInfo.usagePercent > 80 ? '#fef3c7' : '#f3f4f6',
+                      borderRadius: colors.borderRadius,
+                      border: storageInfo.usagePercent > 80 ? '1px solid #f59e0b' : '1px solid #d1d5db'
+                    }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        marginBottom: '6px'
+                      }}>
+                        <span style={{ 
+                          fontSize: '11px', 
+                          fontWeight: '600', 
+                          color: storageInfo.usagePercent > 80 ? '#92400e' : colors.textSecondary,
+                          fontFamily: 'Alan Sans, Arial, sans-serif'
+                        }}>
+                          📊 Storage Usage
+                        </span>
+                        <span style={{ 
+                          fontSize: '11px', 
+                          color: storageInfo.usagePercent > 80 ? '#92400e' : colors.textSecondary,
+                          fontFamily: 'Alan Sans, Arial, sans-serif'
+                        }}>
+                          {storageInfo.usagePercent}% used
+                        </span>
+                      </div>
+                      <div style={{ 
+                        fontSize: '10px', 
+                        color: storageInfo.usagePercent > 80 ? '#92400e' : colors.textSecondary,
+                        fontFamily: 'Alan Sans, Arial, sans-serif'
+                      }}>
+                        💾 {storageInfo.totalSaves} saves • {storageInfo.sizeInKB}KB / {Math.round(storageInfo.estimatedLimit/1024)}MB used
+                        {storageInfo.usagePercent > 80 && (
+                          <div style={{ marginTop: '4px', color: '#dc2626' }}>
+                            ⚠️ Storage nearly full! Consider deleting old saves.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Authentication Modal */}
+        {showAuthModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              background: colors.cardBg,
+              borderRadius: colors.borderRadius,
+              padding: '0',
+              minWidth: '400px',
+              maxWidth: '90vw',
+              boxShadow: colors.shadowLarge,
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '20px 24px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+              }}>
+                <div>
+                  <h2 style={{ 
+                    ...typography.cardHeader, 
+                    margin: '0',
+                    color: colors.textPrimary
+                  }}>
+                    {currentUser ? '👤 Account' : authMode === 'login' ? '🌐 Login' : '📝 Create Account'}
+                  </h2>
+                  {!currentUser && (
+                    <p style={{
+                      ...typography.bodyText,
+                      margin: '4px 0 0 0',
+                      color: colors.textSecondary
+                    }}>
+                      {authMode === 'login' 
+                        ? 'Sign in to save your progress in the cloud' 
+                        : 'Create an account to sync across devices'
+                      }
+                    </p>
+                  )}
+                </div>
+                <button 
+                  onClick={() => {
+                    setShowAuthModal(false);
+                    setAuthEmail('');
+                    setAuthPassword('');
+                    setAuthUsername('');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: colors.textSecondary,
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    borderRadius: '4px'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div style={{ padding: '24px' }}>
+                {currentUser ? (
+                  // User is logged in - show account info
+                  <div>
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '20px',
+                      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                      borderRadius: colors.borderRadius,
+                      marginBottom: '20px'
+                    }}>
+                      <div style={{
+                        fontSize: '48px',
+                        marginBottom: '8px'
+                      }}>👤</div>
+                      <div style={{
+                        ...typography.cardHeader,
+                        color: colors.textPrimary,
+                        marginBottom: '4px'
+                      }}>
+                        {currentUser.displayName || 'Chicken Farmer'}
+                      </div>
+                      <div style={{
+                        ...typography.bodyText,
+                        color: colors.textSecondary
+                      }}>
+                        {currentUser.email}
+                      </div>
+                    </div>
+                    
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '12px',
+                      marginBottom: '20px'
+                    }}>
+                      <div style={{
+                        textAlign: 'center',
+                        padding: '12px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: colors.borderRadius
+                      }}>
+                        <div style={{ fontSize: '20px', marginBottom: '4px' }}>☁️</div>
+                        <div style={{ ...typography.bodyText, fontSize: '10px', color: colors.textSecondary }}>
+                          Cloud Saves
+                        </div>
+                      </div>
+                      <div style={{
+                        textAlign: 'center',
+                        padding: '12px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: colors.borderRadius
+                      }}>
+                        <div style={{ fontSize: '20px', marginBottom: '4px' }}>🌍</div>
+                        <div style={{ ...typography.bodyText, fontSize: '10px', color: colors.textSecondary }}>
+                          Global Leaderboard
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={async () => {
+                        setAuthLoading(true);
+                        try {
+                          const result = await firebaseGameManager.logoutUser();
+                          if (result.success) {
+                            setCurrentUser(null);
+                            setShowAuthModal(false);
+                            showFloatingText('👋 Logged out successfully', colors.orange);
+                          } else {
+                            showFloatingText('❌ Logout failed', colors.red);
+                          }
+                        } catch (error) {
+                          console.error('Logout error:', error);
+                          showFloatingText('❌ Logout failed', colors.red);
+                        } finally {
+                          setAuthLoading(false);
+                        }
+                      }}
+                      disabled={authLoading}
+                      style={{
+                        width: '100%',
+                        background: authLoading ? colors.disabled : 'rgba(239, 68, 68, 0.1)',
+                        color: authLoading ? colors.textSecondary : '#dc2626',
+                        border: `1px solid ${authLoading ? 'rgba(255, 255, 255, 0.1)' : 'rgba(239, 68, 68, 0.3)'}`,
+                        borderRadius: colors.borderRadius,
+                        padding: '12px',
+                        cursor: authLoading ? 'not-allowed' : 'pointer',
+                        ...typography.button
+                      }}
+                    >
+                      {authLoading ? '⏳ Signing out...' : '🚪 Sign Out'}
+                    </button>
+                  </div>
+                ) : (
+                  // Login/Register form
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    
+                    // Validation
+                    if (authMode === 'register' && (!authUsername || !authEmail || !authPassword)) {
+                      showFloatingText('❌ Please fill all fields', colors.red);
+                      return;
+                    }
+                    if (authMode === 'login' && (!authEmail || !authPassword)) {
+                      showFloatingText('❌ Please fill all fields', colors.red);
+                      return;
+                    }
+                    
+                    setAuthLoading(true);
+                    
+                    try {
+                      let result;
+                      
+                      if (authMode === 'register') {
+                        result = await firebaseGameManager.registerUser(authEmail, authPassword, authUsername);
+                      } else {
+                        result = await firebaseGameManager.loginUser(authEmail, authPassword);
+                      }
+                      
+                      if (result.success) {
+                        setShowAuthModal(false);
+                        setAuthEmail('');
+                        setAuthPassword('');
+                        setAuthUsername('');
+                        
+                        showFloatingText(
+                          authMode === 'login' ? '✅ Welcome back!' : '🎉 Account created successfully!', 
+                          colors.green
+                        );
+                        
+                        // Auto-save current game state when user logs in
+                        if (currentSaveName) {
+                          await saveGameWithName(currentSaveName);
+                        }
+                      } else {
+                        showFloatingText(`❌ ${result.error}`, colors.red);
+                      }
+                    } catch (error) {
+                      console.error('Authentication error:', error);
+                      showFloatingText('❌ Authentication failed. Please try again.', colors.red);
+                    } finally {
+                      setAuthLoading(false);
+                    }
+                  }}>
+                    {authMode === 'register' && (
+                      <input
+                        type="text"
+                        placeholder="Username (display name)"
+                        value={authUsername}
+                        onChange={(e) => setAuthUsername(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          marginBottom: '12px',
+                          borderRadius: colors.borderRadius,
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          color: colors.textPrimary,
+                          fontFamily: 'Alan Sans, Arial, sans-serif',
+                          fontSize: '14px'
+                        }}
+                        maxLength={20}
+                      />
+                    )}
+                    
+                    <input
+                      type="email"
+                      placeholder="Email address"
+                      value={authEmail}
+                      onChange={(e) => setAuthEmail(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        marginBottom: '12px',
+                        borderRadius: colors.borderRadius,
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        color: colors.textPrimary,
+                        fontFamily: 'Alan Sans, Arial, sans-serif',
+                        fontSize: '14px'
+                      }}
+                    />
+                    
+                    <input
+                      type="password"
+                      placeholder="Password"
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        marginBottom: '16px',
+                        borderRadius: colors.borderRadius,
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        color: colors.textPrimary,
+                        fontFamily: 'Alan Sans, Arial, sans-serif',
+                        fontSize: '14px'
+                      }}
+                      minLength={6}
+                    />
+                    
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setShowAuthModal(false);
+                          setAuthEmail('');
+                          setAuthPassword('');
+                          setAuthUsername('');
+                        }}
+                        style={{
+                          flex: 1,
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          color: colors.textSecondary,
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          borderRadius: colors.borderRadius,
+                          padding: '12px',
+                          cursor: 'pointer',
+                          ...typography.button
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      
+                      <button 
+                        type="submit"
+                        disabled={authLoading}
+                        style={{
+                          flex: 2,
+                          background: authLoading 
+                            ? colors.disabled 
+                            : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                          color: authLoading ? colors.textSecondary : 'white',
+                          border: 'none',
+                          borderRadius: colors.borderRadius,
+                          padding: '12px',
+                          cursor: authLoading ? 'not-allowed' : 'pointer',
+                          ...typography.button,
+                          fontWeight: '600'
+                        }}
+                      >
+                        {authLoading 
+                          ? '⏳ Processing...' 
+                          : authMode === 'login' ? '🌐 Sign In' : '📝 Create Account'
+                        }
+                      </button>
+                    </div>
+                    
+                    <div style={{ textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#6366f1',
+                          cursor: 'pointer',
+                          ...typography.bodyText,
+                          fontSize: '12px',
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        {authMode === 'login' 
+                          ? "Don't have an account? Create one" 
+                          : 'Already have an account? Sign in'
+                        }
+                      </button>
+                    </div>
+                    
+                    <div style={{
+                      marginTop: '16px',
+                      padding: '12px',
+                      backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                      borderRadius: colors.borderRadius,
+                      border: '1px solid rgba(99, 102, 241, 0.2)'
+                    }}>
+                      <div style={{ 
+                        ...typography.bodyText, 
+                        fontSize: '11px', 
+                        color: colors.textSecondary,
+                        lineHeight: '1.4'
+                      }}>
+                        💡 <strong>Benefits of creating an account:</strong><br />
+                        • ☁️ Save progress in the cloud<br />
+                        • 📱 Play on any device<br />
+                        • 🏆 Compete on global leaderboard<br />
+                        • 🔒 Never lose your chicken empire!
+                      </div>
+                    </div>
+                  </form>
+                )}
               </div>
             </div>
           </div>
@@ -2008,12 +3924,16 @@ function App() {
             background: colors.cardBg,
             borderRadius: colors.borderRadius,
             padding: '12px',
-            boxShadow: colors.shadowLarge,
+            boxShadow: warningEffects.lowMoney 
+              ? '0 8px 30px rgba(239, 68, 68, 0.15), 0 0 0 1px rgba(239, 68, 68, 0.2)' 
+              : colors.shadowLarge,
             display: 'flex',
             flexDirection: 'column',
             height: '100%',
             maxHeight: '550px',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            animation: warningEffects.lowMoney ? 'subtleGlow 3s ease-in-out infinite' : 'none',
+            transition: 'all 0.5s ease'
           }}>
             <div style={{ 
               ...typography.sectionHeader, 
@@ -2111,12 +4031,27 @@ function App() {
                     color: colors.textPrimary 
                   }}>Chickens</span>
                 </div>
-                <span style={{ 
-                  fontSize: '14px', 
-                  fontWeight: '700',
-                  fontFamily: 'Alan Sans, Arial, sans-serif',
-                  color: colors.green 
-                }}>{gameState.chickens}</span>
+                <div style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <span style={{ 
+                    fontSize: '14px', 
+                    fontWeight: '700',
+                    fontFamily: 'Alan Sans, Arial, sans-serif',
+                    color: colors.green 
+                  }}>{gameState.chickens}</span>
+                  {warningEffects.lowChickens && (
+                    <span style={{
+                      fontSize: '10px',
+                      animation: 'gentleBounce 1.5s infinite',
+                      color: 'rgba(255, 165, 0, 0.8)'
+                    }}>
+                      ⚠️
+                    </span>
+                  )}
+                </div>
               </div>
               
               {/* Golden Chickens Card */}
@@ -2167,12 +4102,27 @@ function App() {
                     color: colors.textPrimary 
                   }}>Feed</span>
                 </div>
-                <span style={{ 
-                  fontSize: '14px', 
-                  fontWeight: '700',
-                  fontFamily: 'Alan Sans, Arial, sans-serif',
-                  color: colors.green 
-                }}>{Math.floor(gameState.feed)}</span>
+                <div style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <span style={{ 
+                    fontSize: '14px', 
+                    fontWeight: '700',
+                    fontFamily: 'Alan Sans, Arial, sans-serif',
+                    color: colors.green 
+                  }}>{Math.floor(gameState.feed)}</span>
+                  {warningEffects.lowFeed && (
+                    <span style={{
+                      fontSize: '10px',
+                      animation: 'gentleBounce 1.5s infinite',
+                      color: 'rgba(239, 68, 68, 0.8)'
+                    }}>
+                      ⚠️
+                    </span>
+                  )}
+                </div>
               </div>
               
               {/* Cooks Card */}
@@ -2210,7 +4160,11 @@ function App() {
             background: colors.cardBg,
             borderRadius: colors.borderRadius,
             padding: '12px',
-            boxShadow: colors.shadowLarge,
+            boxShadow: warningEffects.lowChickens 
+              ? '0 8px 30px rgba(255, 165, 0, 0.12), 0 0 0 1px rgba(255, 165, 0, 0.25)' 
+              : colors.shadowLarge,
+            animation: warningEffects.lowChickens ? 'subtleAmber 3s ease-in-out infinite' : 'none',
+            transition: 'all 0.5s ease',
             display: 'flex',
             flexDirection: 'column',
             height: '100%',
@@ -2745,11 +4699,15 @@ function App() {
             borderRadius: colors.borderRadius,
             padding: '16px',
             textAlign: 'center',
-            boxShadow: colors.shadowLarge,
+            boxShadow: warningEffects.lowMoney 
+              ? '0 8px 30px rgba(239, 68, 68, 0.15), 0 0 0 1px rgba(239, 68, 68, 0.2)' 
+              : colors.shadowLarge,
             maxHeight: '550px',
             overflow: 'hidden',
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            animation: warningEffects.lowMoney ? 'subtleGlow 3s ease-in-out infinite' : 'none',
+            transition: 'all 0.5s ease'
           }}>
             <div style={{ 
               ...typography.sectionHeader, 
@@ -2763,9 +4721,22 @@ function App() {
               ...typography.balance, 
               color: colors.textPrimary, 
               marginBottom: '16px',
-              fontWeight: '800'
+              fontWeight: '800',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}>
               ${gameState.money.toLocaleString()}
+              {warningEffects.lowMoney && (
+                <span style={{
+                  fontSize: '16px',
+                  animation: 'gentleBounce 1.5s infinite',
+                  color: 'rgba(239, 68, 68, 0.7)'
+                }}>
+                  ⚠️
+                </span>
+              )}
             </div>
             
             {/* Collect Button - Orange like in the image */}
@@ -3310,7 +5281,11 @@ function App() {
             background: colors.cardBg,
             borderRadius: colors.borderRadius,
             padding: '12px',
-            boxShadow: colors.shadowLarge
+            boxShadow: warningEffects.lowFeed 
+              ? '0 8px 30px rgba(239, 68, 68, 0.15), 0 0 0 1px rgba(239, 68, 68, 0.2)' 
+              : colors.shadowLarge,
+            animation: warningEffects.lowFeed ? 'subtleGlow 3s ease-in-out infinite' : 'none',
+            transition: 'all 0.5s ease'
           }}>
             <div style={{ 
               ...typography.sectionHeader, 
@@ -3799,6 +5774,58 @@ function App() {
           </div>
         ))}
 
+        {/* Celebration Overlay */}
+        {celebrations.map(celebration => (
+          <div key={celebration.id} style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            pointerEvents: 'none',
+            zIndex: 1001,
+            overflow: 'hidden'
+          }}>
+            {/* Celebration Banner */}
+            <div style={{
+              position: 'absolute',
+              top: '20%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'linear-gradient(45deg, #FFD700, #FF6B6B, #4ECDC4)',
+              color: 'white',
+              padding: '20px 40px',
+              borderRadius: '15px',
+              fontSize: '24px',
+              fontWeight: 'bold',
+              textAlign: 'center',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+              animation: 'celebrationBounce 0.6s ease-out',
+              border: '3px solid white'
+            }}>
+              🎉 MILESTONE REACHED! 🎉
+              <br />
+              <span style={{ fontSize: '32px' }}>
+                ${celebration.milestone.toLocaleString()}
+              </span>
+            </div>
+
+            {/* Animated Particles */}
+            {celebration.particles.map(particle => (
+              <div key={particle.id} style={{
+                position: 'absolute',
+                left: `${particle.x}%`,
+                top: `${particle.y}%`,
+                fontSize: '24px',
+                animation: `particleFloat 3s ease-out forwards`,
+                animationDelay: `${particle.id * 0.1}s`
+              }}>
+                {particle.emoji}
+              </div>
+            ))}
+          </div>
+        ))}
+
         <style jsx>{`
           @keyframes float-up {
             0% { opacity: 1; transform: translateY(0px); }
@@ -3838,6 +5865,108 @@ function App() {
             }
             50% { 
               transform: translateY(-8px) scale(1.1); 
+            }
+          }
+
+          @keyframes celebrationBounce {
+            0% { 
+              transform: translateX(-50%) scale(0) rotate(-180deg); 
+              opacity: 0; 
+            }
+            50% { 
+              transform: translateX(-50%) scale(1.1) rotate(-10deg); 
+              opacity: 1; 
+            }
+            100% { 
+              transform: translateX(-50%) scale(1) rotate(0deg); 
+              opacity: 1; 
+            }
+          }
+          
+          @keyframes particleFloat {
+            0% { 
+              transform: translateY(0) scale(0) rotate(0deg); 
+              opacity: 0; 
+            }
+            10% { 
+              opacity: 1; 
+            }
+            100% { 
+              transform: translateY(-200px) scale(1) rotate(360deg); 
+              opacity: 0; 
+            }
+          }
+          
+          @keyframes pulse {
+            0% { 
+              transform: scale(1); 
+              box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.7); 
+            }
+            70% { 
+              transform: scale(1.05); 
+              box-shadow: 0 0 0 10px rgba(255, 107, 53, 0); 
+            }
+            100% { 
+              transform: scale(1); 
+              box-shadow: 0 0 0 0 rgba(255, 107, 53, 0); 
+            }
+          }
+          
+          @keyframes subtleGlow {
+            0% { 
+              box-shadow: 0 8px 30px rgba(239, 68, 68, 0.12), 0 0 0 1px rgba(239, 68, 68, 0.15);
+            }
+            50% { 
+              box-shadow: 0 8px 30px rgba(239, 68, 68, 0.18), 0 0 0 1px rgba(239, 68, 68, 0.25);
+            }
+            100% { 
+              box-shadow: 0 8px 30px rgba(239, 68, 68, 0.12), 0 0 0 1px rgba(239, 68, 68, 0.15);
+            }
+          }
+
+          @keyframes subtleAmber {
+            0% { 
+              box-shadow: 0 8px 30px rgba(255, 165, 0, 0.1), 0 0 0 1px rgba(255, 165, 0, 0.2);
+            }
+            50% { 
+              box-shadow: 0 8px 30px rgba(255, 165, 0, 0.15), 0 0 0 1px rgba(255, 165, 0, 0.3);
+            }
+            100% { 
+              box-shadow: 0 8px 30px rgba(255, 165, 0, 0.1), 0 0 0 1px rgba(255, 165, 0, 0.2);
+            }
+          }
+
+          @keyframes gentleBounce {
+            0%, 100% { 
+              transform: translateY(0px) scale(1);
+              opacity: 0.7;
+            }
+            50% { 
+              transform: translateY(-2px) scale(1.05);
+              opacity: 1;
+            }
+          }
+          
+          @keyframes buttonHover {
+            0% { 
+              transform: translateY(0) scale(1); 
+              box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+            }
+            100% { 
+              transform: translateY(-2px) scale(1.02); 
+              box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+            }
+          }
+          
+          @keyframes buttonPress {
+            0% { 
+              transform: scale(1); 
+            }
+            50% { 
+              transform: scale(0.95); 
+            }
+            100% { 
+              transform: scale(1); 
             }
           }
         `}</style>
