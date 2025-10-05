@@ -1,7 +1,7 @@
 {
   "name": "chicken-empire-react",
   "version": "0.1.0",
-  "_homepage_disabled_for_dev": "https://chinmayjoshi18.github.io/chicken-empire",
+  "homepage": "https://chinmayjoshi18.github.io/chicken-empire",
   "private": true,
   "dependencies": {
     "@fontsource/alan-sans": "^5.2.1",
