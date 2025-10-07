@@ -2259,7 +2259,7 @@ function App() {
             )}
 
             {/* Authentication Buttons */}
-            {!currentUser && (
+            {!currentUser ? (
               <div style={{
                 display: 'flex',
                 gap: '12px',
