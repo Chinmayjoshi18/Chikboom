@@ -1,0 +1,23 @@
+{
+  "files": {
+    "main.css": "/Chikboom/static/css/main.dd572a5d.css",
+    "main.js": "/Chikboom/static/js/main.990bf63d.js",
+    "static/js/453.4fed7cdc.chunk.js": "/Chikboom/static/js/453.4fed7cdc.chunk.js",
+    "static/media/alan-sans-latin-400-normal.woff": "/Chikboom/static/media/alan-sans-latin-400-normal.2584b972c11304e8903f.woff",
+    "static/media/alan-sans-latin-700-normal.woff": "/Chikboom/static/media/alan-sans-latin-700-normal.d49d6f7f53924c235ddf.woff",
+    "static/media/alan-sans-latin-400-normal.woff2": "/Chikboom/static/media/alan-sans-latin-400-normal.40ed812ee6bd37f3e16b.woff2",
+    "static/media/alan-sans-latin-700-normal.woff2": "/Chikboom/static/media/alan-sans-latin-700-normal.a32050afa77eff24c534.woff2",
+    "static/media/alan-sans-latin-ext-400-normal.woff": "/Chikboom/static/media/alan-sans-latin-ext-400-normal.62c076f9cbb52e0e76d0.woff",
+    "static/media/alan-sans-latin-ext-700-normal.woff": "/Chikboom/static/media/alan-sans-latin-ext-700-normal.8def0514e73bf32d1e30.woff",
+    "static/media/alan-sans-latin-ext-700-normal.woff2": "/Chikboom/static/media/alan-sans-latin-ext-700-normal.c0d5a223084ffcfcedeb.woff2",
+    "static/media/alan-sans-latin-ext-400-normal.woff2": "/Chikboom/static/media/alan-sans-latin-ext-400-normal.98578c0552071c394b24.woff2",
+    "index.html": "/Chikboom/index.html",
+    "main.dd572a5d.css.map": "/Chikboom/static/css/main.dd572a5d.css.map",
+    "main.990bf63d.js.map": "/Chikboom/static/js/main.990bf63d.js.map",
+    "453.4fed7cdc.chunk.js.map": "/Chikboom/static/js/453.4fed7cdc.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.dd572a5d.css",
+    "static/js/main.990bf63d.js"
+  ]
+}
