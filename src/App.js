@@ -534,6 +534,10 @@ function App() {
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [gameFrozen, setGameFrozen] = useState(false);
   
+  // Responsive Design State
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isTablet, setIsTablet] = useState(window.innerWidth > 768 && window.innerWidth <= 1024);
+  
   // Interactive Effects State
   const [celebrations, setCelebrations] = useState([]);
   const [warningEffects, setWarningEffects] = useState({
@@ -634,6 +638,18 @@ function App() {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
       if (saveIntervalRef.current) clearInterval(saveIntervalRef.current);
     };
+  }, []);
+
+  // Handle responsive design
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width <= 768);
+      setIsTablet(width > 768 && width <= 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const initGame = async () => {
@@ -2040,16 +2056,17 @@ function App() {
         {/* Main Lobby Container */}
         <div style={{
           background: 'rgba(255, 255, 255, 0.95)',
-          borderRadius: '24px',
-          padding: '48px',
+          borderRadius: isMobile ? '16px' : '24px',
+          padding: isMobile ? '24px' : (isTablet ? '36px' : '48px'),
           maxWidth: '600px',
-          width: '90%',
+          width: isMobile ? '95%' : '90%',
+          maxHeight: isMobile ? '95vh' : 'auto',
+          overflowY: isMobile ? 'auto' : 'visible',
           textAlign: 'center',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
           backdropFilter: 'blur(10px)',
           border: '1px solid rgba(255, 255, 255, 0.2)',
-          position: 'relative',
-          overflow: 'hidden'
+          position: 'relative'
         }}>
           {/* Game Logo */}
           <div style={{
@@ -2057,7 +2074,7 @@ function App() {
             position: 'relative'
           }}>
             <h1 style={{
-              fontSize: '48px',
+              fontSize: isMobile ? '32px' : (isTablet ? '40px' : '48px'),
               fontWeight: 'bold',
               margin: '0 0 16px 0',
               background: 'linear-gradient(135deg, #ff6b6b, #ffd93d, #6bcf7f)',
@@ -2069,7 +2086,7 @@ function App() {
               🐔 CHICKEN EMPIRE 🐔
             </h1>
             <p style={{
-              fontSize: '18px',
+              fontSize: isMobile ? '14px' : (isTablet ? '16px' : '18px'),
               color: '#666',
               margin: '0',
               fontStyle: 'italic'
@@ -2132,8 +2149,8 @@ function App() {
                 background: 'linear-gradient(135deg, #FF6B6B, #FF5722)',
                 color: 'white',
                 border: 'none',
-                padding: '20px 32px',
-                fontSize: '20px',
+                padding: isMobile ? '16px 24px' : '20px 32px',
+                fontSize: isMobile ? '16px' : '20px',
                 fontWeight: 'bold',
                 borderRadius: '16px',
                 cursor: 'pointer',
@@ -2142,15 +2159,21 @@ function App() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '12px'
+                gap: '12px',
+                minHeight: isMobile ? '56px' : 'auto',
+                width: isMobile ? '100%' : 'auto'
               }}
               onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px) scale(1.05)';
-                e.target.style.boxShadow = '0 12px 32px rgba(255, 107, 107, 0.6)';
+                if (!isMobile) {
+                  e.target.style.transform = 'translateY(-2px) scale(1.05)';
+                  e.target.style.boxShadow = '0 12px 32px rgba(255, 107, 107, 0.6)';
+                }
               }}
               onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0) scale(1)';
-                e.target.style.boxShadow = '0 8px 24px rgba(255, 107, 107, 0.4)';
+                if (!isMobile) {
+                  e.target.style.transform = 'translateY(0) scale(1)';
+                  e.target.style.boxShadow = '0 8px 24px rgba(255, 107, 107, 0.4)';
+                }
               }}
             >
               🚀 START NEW GAME
@@ -2163,8 +2186,8 @@ function App() {
                 background: 'linear-gradient(135deg, #9333ea, #7c3aed)',
                 color: 'white',
                 border: 'none',
-                padding: '20px 32px',
-                fontSize: '20px',
+                padding: isMobile ? '16px 24px' : '20px 32px',
+                fontSize: isMobile ? '16px' : '20px',
                 fontWeight: 'bold',
                 borderRadius: '16px',
                 cursor: 'pointer',
@@ -2173,15 +2196,21 @@ function App() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '12px'
+                gap: '12px',
+                minHeight: isMobile ? '56px' : 'auto',
+                width: isMobile ? '100%' : 'auto'
               }}
               onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px) scale(1.05)';
-                e.target.style.boxShadow = '0 12px 32px rgba(147, 51, 234, 0.6)';
+                if (!isMobile) {
+                  e.target.style.transform = 'translateY(-2px) scale(1.05)';
+                  e.target.style.boxShadow = '0 12px 32px rgba(147, 51, 234, 0.6)';
+                }
               }}
               onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0) scale(1)';
-                e.target.style.boxShadow = '0 8px 24px rgba(147, 51, 234, 0.4)';
+                if (!isMobile) {
+                  e.target.style.transform = 'translateY(0) scale(1)';
+                  e.target.style.boxShadow = '0 8px 24px rgba(147, 51, 234, 0.4)';
+                }
               }}
             >
               📂 LOAD GAME
@@ -2192,7 +2221,8 @@ function App() {
               <div style={{
                 display: 'flex',
                 gap: '12px',
-                flexWrap: 'wrap'
+                flexWrap: 'wrap',
+                flexDirection: isMobile ? 'column' : 'row'
               }}>
                 <button
                   onClick={() => openAuthModal('login')}
@@ -2200,23 +2230,28 @@ function App() {
                     background: 'linear-gradient(135deg, #4CAF50, #45a049)',
                     color: 'white',
                     border: 'none',
-                    padding: '16px 24px',
-                    fontSize: '16px',
+                    padding: isMobile ? '14px 20px' : '16px 24px',
+                    fontSize: isMobile ? '15px' : '16px',
                     fontWeight: 'bold',
                     borderRadius: '12px',
                     cursor: 'pointer',
                     flex: 1,
-                    minWidth: '140px',
+                    minWidth: isMobile ? '100%' : '140px',
+                    minHeight: isMobile ? '48px' : 'auto',
                     transition: 'all 0.3s ease',
                     boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 6px 16px rgba(76, 175, 80, 0.5)';
+                    if (!isMobile) {
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 6px 16px rgba(76, 175, 80, 0.5)';
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.3)';
+                    if (!isMobile) {
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.3)';
+                    }
                   }}
                 >
                   🔑 LOGIN
@@ -2227,23 +2262,28 @@ function App() {
                     background: 'linear-gradient(135deg, #2196F3, #1976D2)',
                     color: 'white',
                     border: 'none',
-                    padding: '16px 24px',
-                    fontSize: '16px',
+                    padding: isMobile ? '14px 20px' : '16px 24px',
+                    fontSize: isMobile ? '15px' : '16px',
                     fontWeight: 'bold',
                     borderRadius: '12px',
                     cursor: 'pointer',
                     flex: 1,
-                    minWidth: '140px',
+                    minWidth: isMobile ? '100%' : '140px',
+                    minHeight: isMobile ? '48px' : 'auto',
                     transition: 'all 0.3s ease',
                     boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 6px 16px rgba(33, 150, 243, 0.5)';
+                    if (!isMobile) {
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 6px 16px rgba(33, 150, 243, 0.5)';
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 4px 12px rgba(33, 150, 243, 0.3)';
+                    if (!isMobile) {
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 4px 12px rgba(33, 150, 243, 0.3)';
+                    }
                   }}
                 >
                   📝 REGISTER

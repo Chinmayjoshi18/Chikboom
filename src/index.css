@@ -348,10 +348,39 @@ body {
   border-left: 4px solid #2E8B57;
 }
 
-/* Mobile responsive */
+/* Tablet responsive (iPad) */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .grid-cols-6 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  
+  .balance-amount {
+    font-size: 3em;
+  }
+  
+  .collect-button {
+    width: 150px;
+    height: 150px;
+    font-size: 18px;
+  }
+  
+  .container {
+    padding: 12px;
+  }
+}
+
+/* Mobile responsive (phones and small tablets) */
 @media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+  
   .grid-cols-6 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   
   .balance-amount {
@@ -366,5 +395,56 @@ body {
   
   .container {
     padding: 8px;
+  }
+  
+  .game-card {
+    margin-bottom: 12px;
+  }
+  
+  /* Make buttons more touch-friendly */
+  .btn-primary,
+  .sales-button,
+  .shop-item button {
+    min-height: 44px;
+    font-size: 14px;
+    padding: 12px 20px;
+  }
+  
+  /* Improve modal sizing for mobile */
+  .modal-content {
+    width: 95% !important;
+    max-width: 95% !important;
+    max-height: 90vh !important;
+  }
+  
+  /* Stack layout vertically on mobile */
+  .mobile-stack {
+    flex-direction: column !important;
+  }
+}
+
+/* Small mobile phones */
+@media (max-width: 480px) {
+  .balance-amount {
+    font-size: 2em;
+  }
+  
+  .collect-button {
+    width: 110px;
+    height: 110px;
+    font-size: 14px;
+  }
+  
+  .grid-cols-6,
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  .text-xl {
+    font-size: 16px;
+  }
+  
+  .text-lg {
+    font-size: 15px;
   }
 }
