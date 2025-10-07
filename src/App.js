@@ -531,6 +531,7 @@ function App() {
   const [floatingTexts, setFloatingTexts] = useState([]);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [musicVolume, setMusicVolume] = useState(5); // Volume as percentage (0-10)
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [gameFrozen, setGameFrozen] = useState(false);
   
   // Interactive Effects State
@@ -2118,9 +2119,15 @@ function App() {
             gap: '16px',
             marginBottom: '32px'
           }}>
-            {/* Start Game Button */}
+            {/* Start New Game Button */}
             <button
-              onClick={enterGame}
+              onClick={() => {
+                if (gameStarted && !window.confirm('Starting a new game will reset your current progress. Continue?')) {
+                  return;
+                }
+                handleResetGame();
+                enterGame();
+              }}
               style={{
                 background: 'linear-gradient(135deg, #FF6B6B, #FF5722)',
                 color: 'white',
@@ -2146,7 +2153,38 @@ function App() {
                 e.target.style.boxShadow = '0 8px 24px rgba(255, 107, 107, 0.4)';
               }}
             >
-              🚀 {gameStarted ? 'CONTINUE EMPIRE' : 'START NEW EMPIRE'}
+              🚀 START NEW GAME
+            </button>
+
+            {/* Load Game Button */}
+            <button
+              onClick={() => setShowLoadModal(true)}
+              style={{
+                background: 'linear-gradient(135deg, #9333ea, #7c3aed)',
+                color: 'white',
+                border: 'none',
+                padding: '20px 32px',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                borderRadius: '16px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 8px 24px rgba(147, 51, 234, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px) scale(1.05)';
+                e.target.style.boxShadow = '0 12px 32px rgba(147, 51, 234, 0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0) scale(1)';
+                e.target.style.boxShadow = '0 8px 24px rgba(147, 51, 234, 0.4)';
+              }}
+            >
+              📂 LOAD GAME
             </button>
 
             {/* Authentication Buttons */}
@@ -2888,7 +2926,7 @@ function App() {
                 {currentUser ? `👤 ${currentUser.displayName || 'User'}` : '🌐 Login'}
               </button>
               
-              <button onClick={toggleMusic} style={{
+              <button onClick={() => setShowVolumeSlider(!showVolumeSlider)} style={{
                 background: musicEnabled 
                   ? 'rgba(16, 185, 129, 0.1)' 
                   : 'rgba(209, 213, 219, 0.1)',
@@ -2906,51 +2944,66 @@ function App() {
                 🎵 Music
               </button>
 
-              {/* Volume Slider */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 12px',
-                background: 'rgba(16, 185, 129, 0.1)',
-                borderRadius: colors.borderRadius,
-                border: `1px solid rgba(16, 185, 129, 0.2)`,
-              }}>
-                <span style={{
-                  ...typography.button,
-                  color: colors.green,
-                  fontSize: '10px',
-                  minWidth: '20px'
+              {/* Volume Slider - Only show when button clicked */}
+              {showVolumeSlider && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  borderRadius: colors.borderRadius,
+                  border: `1px solid rgba(16, 185, 129, 0.2)`,
                 }}>
-                  🔊
-                </span>
-                <input
-                  type="range"
-                  min="0"
-                  max="10"
-                  value={musicVolume}
-                  onChange={handleVolumeChange}
-                  style={{
-                    width: '60px',
-                    height: '4px',
-                    background: `linear-gradient(to right, ${colors.green} 0%, ${colors.green} ${(musicVolume / 10) * 100}%, rgba(16, 185, 129, 0.2) ${(musicVolume / 10) * 100}%, rgba(16, 185, 129, 0.2) 100%)`,
-                    borderRadius: '2px',
-                    outline: 'none',
-                    cursor: 'pointer',
-                    WebkitAppearance: 'none',
-                    MozAppearance: 'none',
-                    border: 'none',
-                  }}
-                />
-                <span style={{
-                  ...typography.button,
-                  color: colors.green,
-                  fontSize: '8px',
-                  minWidth: '25px'
-                }}>
-                  {musicVolume}%
-                </span>
-              </div>
+                  <span style={{
+                    ...typography.button,
+                    color: colors.green,
+                    fontSize: '10px',
+                    minWidth: '20px'
+                  }}>
+                    🔊
+                  </span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    value={musicVolume}
+                    onChange={handleVolumeChange}
+                    style={{
+                      width: '60px',
+                      height: '4px',
+                      background: `linear-gradient(to right, ${colors.green} 0%, ${colors.green} ${(musicVolume / 10) * 100}%, rgba(16, 185, 129, 0.2) ${(musicVolume / 10) * 100}%, rgba(16, 185, 129, 0.2) 100%)`,
+                      borderRadius: '2px',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      WebkitAppearance: 'none',
+                      MozAppearance: 'none',
+                      border: 'none',
+                    }}
+                  />
+                  <span style={{
+                    ...typography.button,
+                    color: colors.green,
+                    fontSize: '8px',
+                    minWidth: '25px'
+                  }}>
+                    {musicVolume}%
+                  </span>
+                  <button 
+                    onClick={toggleMusic}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: colors.green,
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      padding: '0 4px',
+                    }}
+                  >
+                    {musicEnabled ? '🔊' : '🔇'}
+                  </button>
+                </div>
+              )}
 
               <button onClick={toggleGameFreeze} style={{
                 background: gameFrozen 
@@ -2968,20 +3021,6 @@ function App() {
                 transition: 'all 0.2s ease'
               }}>
                 {gameFrozen ? '▶️ Start' : '⏸️ Freeze'}
-              </button>
-              
-              <button onClick={pumpResources} style={{
-                background: 'rgba(168, 85, 247, 0.1)',
-                color: '#a855f7',
-                border: `1px solid rgba(168, 85, 247, 0.2)`,
-                ...typography.button, 
-                fontSize: '10px',
-                padding: '8px 12px',
-                borderRadius: colors.borderRadius, 
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}>
-                💪 Pump
               </button>
             </div>
           </div>
