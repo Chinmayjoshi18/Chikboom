@@ -2136,88 +2136,130 @@ function App() {
             gap: '16px',
             marginBottom: '32px'
           }}>
-            {/* Start New Game Button */}
-            <button
-              onClick={() => {
-                if (gameStarted && !window.confirm('Starting a new game will reset your current progress. Continue?')) {
-                  return;
-                }
-                handleResetGame();
-                enterGame();
-              }}
-              style={{
-                background: 'linear-gradient(135deg, #FF6B6B, #FF5722)',
-                color: 'white',
-                border: 'none',
-                padding: isMobile ? '16px 24px' : '20px 32px',
-                fontSize: isMobile ? '16px' : '20px',
-                fontWeight: 'bold',
-                borderRadius: '16px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 8px 24px rgba(255, 107, 107, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '12px',
-                minHeight: isMobile ? '56px' : 'auto',
-                width: isMobile ? '100%' : 'auto'
-              }}
-              onMouseEnter={(e) => {
-                if (!isMobile) {
-                  e.target.style.transform = 'translateY(-2px) scale(1.05)';
-                  e.target.style.boxShadow = '0 12px 32px rgba(255, 107, 107, 0.6)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isMobile) {
-                  e.target.style.transform = 'translateY(0) scale(1)';
-                  e.target.style.boxShadow = '0 8px 24px rgba(255, 107, 107, 0.4)';
-                }
-              }}
-            >
-              🚀 START NEW GAME
-            </button>
+            {/* Show cloud save buttons only for logged-in users */}
+            {currentUser ? (
+              <>
+                {/* Start New Game Button */}
+                <button
+                  onClick={() => {
+                    if (gameStarted && !window.confirm('Starting a new game will reset your current progress. Continue?')) {
+                      return;
+                    }
+                    handleResetGame();
+                    enterGame();
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, #FF6B6B, #FF5722)',
+                    color: 'white',
+                    border: 'none',
+                    padding: isMobile ? '16px 24px' : '20px 32px',
+                    fontSize: isMobile ? '16px' : '20px',
+                    fontWeight: 'bold',
+                    borderRadius: '16px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 8px 24px rgba(255, 107, 107, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px',
+                    minHeight: isMobile ? '56px' : 'auto',
+                    width: isMobile ? '100%' : 'auto'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isMobile) {
+                      e.target.style.transform = 'translateY(-2px) scale(1.05)';
+                      e.target.style.boxShadow = '0 12px 32px rgba(255, 107, 107, 0.6)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isMobile) {
+                      e.target.style.transform = 'translateY(0) scale(1)';
+                      e.target.style.boxShadow = '0 8px 24px rgba(255, 107, 107, 0.4)';
+                    }
+                  }}
+                >
+                  🚀 START NEW GAME
+                </button>
 
-            {/* Load Game Button */}
-            <button
-              onClick={() => setShowLoadModal(true)}
-              style={{
-                background: 'linear-gradient(135deg, #9333ea, #7c3aed)',
-                color: 'white',
-                border: 'none',
-                padding: isMobile ? '16px 24px' : '20px 32px',
-                fontSize: isMobile ? '16px' : '20px',
-                fontWeight: 'bold',
-                borderRadius: '16px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 8px 24px rgba(147, 51, 234, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '12px',
-                minHeight: isMobile ? '56px' : 'auto',
-                width: isMobile ? '100%' : 'auto'
-              }}
-              onMouseEnter={(e) => {
-                if (!isMobile) {
-                  e.target.style.transform = 'translateY(-2px) scale(1.05)';
-                  e.target.style.boxShadow = '0 12px 32px rgba(147, 51, 234, 0.6)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isMobile) {
-                  e.target.style.transform = 'translateY(0) scale(1)';
-                  e.target.style.boxShadow = '0 8px 24px rgba(147, 51, 234, 0.4)';
-                }
-              }}
-            >
-              📂 LOAD GAME
-            </button>
+                {/* Load Game Button */}
+                <button
+                  onClick={() => setShowLoadModal(true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #9333ea, #7c3aed)',
+                    color: 'white',
+                    border: 'none',
+                    padding: isMobile ? '16px 24px' : '20px 32px',
+                    fontSize: isMobile ? '16px' : '20px',
+                    fontWeight: 'bold',
+                    borderRadius: '16px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 8px 24px rgba(147, 51, 234, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px',
+                    minHeight: isMobile ? '56px' : 'auto',
+                    width: isMobile ? '100%' : 'auto'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isMobile) {
+                      e.target.style.transform = 'translateY(-2px) scale(1.05)';
+                      e.target.style.boxShadow = '0 12px 32px rgba(147, 51, 234, 0.6)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isMobile) {
+                      e.target.style.transform = 'translateY(0) scale(1)';
+                      e.target.style.boxShadow = '0 8px 24px rgba(147, 51, 234, 0.4)';
+                    }
+                  }}
+                >
+                  📂 LOAD GAME
+                </button>
+              </>
+            ) : (
+              /* Play as Guest button for non-authenticated users */
+              <button
+                onClick={enterGame}
+                style={{
+                  background: 'linear-gradient(135deg, #FF6B6B, #FF5722)',
+                  color: 'white',
+                  border: 'none',
+                  padding: isMobile ? '16px 24px' : '20px 32px',
+                  fontSize: isMobile ? '16px' : '20px',
+                  fontWeight: 'bold',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 8px 24px rgba(255, 107, 107, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '12px',
+                  minHeight: isMobile ? '56px' : 'auto',
+                  width: isMobile ? '100%' : 'auto'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isMobile) {
+                    e.target.style.transform = 'translateY(-2px) scale(1.05)';
+                    e.target.style.boxShadow = '0 12px 32px rgba(255, 107, 107, 0.6)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isMobile) {
+                    e.target.style.transform = 'translateY(0) scale(1)';
+                    e.target.style.boxShadow = '0 8px 24px rgba(255, 107, 107, 0.4)';
+                  }
+                }}
+              >
+                🎮 PLAY AS GUEST
+              </button>
+            )}
 
             {/* Authentication Buttons */}
-            {!currentUser ? (
+            {!currentUser && (
               <div style={{
                 display: 'flex',
                 gap: '12px',
