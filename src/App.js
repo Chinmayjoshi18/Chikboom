@@ -4031,13 +4031,13 @@ function App() {
           padding: '8px',
           gap: '12px'
         }}>
-          {/* Enhanced 5-Panel Top Row */}
+          {/* Enhanced 5-Panel Top Row - Responsive Grid */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr',
+            gridTemplateColumns: isMobile ? '1fr' : (isTablet ? '1fr 1fr' : '1fr 1fr 1fr 1fr 1fr'),
             gap: '8px',
-            minHeight: '350px',
-            maxHeight: '550px'
+            minHeight: isMobile ? 'auto' : '350px',
+            maxHeight: isMobile ? 'none' : '550px'
           }}>
 
           {/* Stats Panel */}
@@ -4050,11 +4050,12 @@ function App() {
               : colors.shadowLarge,
             display: 'flex',
             flexDirection: 'column',
-            height: '100%',
-            maxHeight: '550px',
+            height: isMobile ? 'auto' : '100%',
+            maxHeight: isMobile ? 'none' : '550px',
             overflow: 'hidden',
             animation: warningEffects.lowMoney ? 'subtleGlow 3s ease-in-out infinite' : 'none',
-            transition: 'all 0.5s ease'
+            transition: 'all 0.5s ease',
+            order: isMobile ? 1 : 0
           }}>
             <div style={{ 
               ...typography.sectionHeader, 
@@ -4288,9 +4289,10 @@ function App() {
             transition: 'all 0.5s ease',
             display: 'flex',
             flexDirection: 'column',
-            height: '100%',
-            maxHeight: '550px',
-            overflow: 'hidden'
+            height: isMobile ? 'auto' : '100%',
+            maxHeight: isMobile ? 'none' : '550px',
+            overflow: 'hidden',
+            order: isMobile ? 2 : 0
           }}>
             <div style={{ 
               ...typography.sectionHeader, 
@@ -4823,12 +4825,13 @@ function App() {
             boxShadow: warningEffects.lowMoney 
               ? '0 8px 30px rgba(239, 68, 68, 0.15), 0 0 0 1px rgba(239, 68, 68, 0.2)' 
               : colors.shadowLarge,
-            maxHeight: '550px',
+            maxHeight: isMobile ? 'none' : '550px',
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
             animation: warningEffects.lowMoney ? 'subtleGlow 3s ease-in-out infinite' : 'none',
-            transition: 'all 0.5s ease'
+            transition: 'all 0.5s ease',
+            order: isMobile ? 3 : 0
           }}>
             <div style={{ 
               ...typography.sectionHeader, 
@@ -4954,9 +4957,10 @@ function App() {
             boxShadow: colors.shadowLarge,
             display: 'flex',
             flexDirection: 'column',
-            height: '100%',
-            maxHeight: '550px',
-            overflow: 'hidden'
+            height: isMobile ? 'auto' : '100%',
+            maxHeight: isMobile ? 'none' : '550px',
+            overflow: 'hidden',
+            order: isMobile ? 4 : 0
           }}>
             <div style={{ 
               ...typography.sectionHeader, 
@@ -5122,12 +5126,13 @@ function App() {
             boxShadow: gameState.money >= 5000 ? colors.shadowLarge : 'none',
             display: 'flex',
             flexDirection: 'column',
-            height: '100%',
-            maxHeight: '550px',
+            height: isMobile ? 'auto' : '100%',
+            maxHeight: isMobile ? 'none' : '550px',
             overflow: 'hidden',
             opacity: gameState.money >= 5000 ? 1 : 0.6,
             border: gameState.money >= 5000 ? 'none' : `2px dashed ${colors.disabled}`,
-            position: 'relative'
+            position: 'relative',
+            order: isMobile ? 5 : 0
           }}>
             <div style={{ 
               ...typography.sectionHeader, 
@@ -5392,9 +5397,9 @@ function App() {
           {/* Enhanced 2-Panel Bottom Row */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
+            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
             gap: '8px',
-            minHeight: '280px'
+            minHeight: isMobile ? 'auto' : '280px'
           }}>
           
           {/* Farm Visual Panel */}
@@ -5406,7 +5411,8 @@ function App() {
               ? '0 8px 30px rgba(239, 68, 68, 0.15), 0 0 0 1px rgba(239, 68, 68, 0.2)' 
               : colors.shadowLarge,
             animation: warningEffects.lowFeed ? 'subtleGlow 3s ease-in-out infinite' : 'none',
-            transition: 'all 0.5s ease'
+            transition: 'all 0.5s ease',
+            order: isMobile ? 6 : 0
           }}>
             <div style={{ 
               ...typography.sectionHeader, 
@@ -5518,7 +5524,8 @@ function App() {
             boxShadow: gameState.money >= 5000 ? colors.shadowLarge : 'none',
             opacity: gameState.money >= 5000 ? 1 : 0.6,
             border: gameState.money >= 5000 ? 'none' : `2px dashed ${colors.disabled}`,
-            position: 'relative'
+            position: 'relative',
+            order: isMobile ? 7 : 0
           }}>
             <div style={{ 
               ...typography.sectionHeader, 
