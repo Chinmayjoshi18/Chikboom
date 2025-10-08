@@ -2753,6 +2753,210 @@ function App() {
           </div>
         )}
 
+        {/* Load Game Modal */}
+        {showLoadModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 100,
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <div style={{
+              background: colors.cardBg,
+              borderRadius: colors.borderRadiusLarge,
+              width: '90%', maxWidth: '600px', maxHeight: '80%',
+              overflow: 'hidden',
+              border: '3px solid #9333ea',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
+            }}>
+              <div style={{
+                padding: '20px',
+                borderBottom: '1px solid #e5e7eb',
+                background: 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)',
+                color: 'white',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <h2 style={{ ...typography.sectionHeader, margin: 0, color: 'white' }}>
+                    📂 Load Saved Game
+                  </h2>
+                  <p style={{ ...typography.bodyText, margin: '4px 0 0 0', opacity: 0.9 }}>
+                    Select a saved game to continue playing
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowLoadModal(false)} 
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.2)', 
+                    border: 'none', 
+                    fontSize: '20px', 
+                    cursor: 'pointer',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    color: 'white'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div style={{ padding: '20px', maxHeight: '400px', overflow: 'auto' }}>
+                {savedGamesLoading ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px',
+                    color: colors.textSecondary,
+                    ...typography.bodyText
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+                    Loading saved games...
+                    {currentUser && (
+                      <div style={{ fontSize: '12px', marginTop: '8px', opacity: 0.7 }}>
+                        Fetching from cloud...
+                      </div>
+                    )}
+                  </div>
+                ) : Object.keys(getAllSavedGames()).length === 0 ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px',
+                    color: colors.textSecondary,
+                    ...typography.bodyText
+                  }}>
+                    🎮 No saved games found!<br />
+                    {currentUser ? 'Save your progress to see it here.' : 'Sign in to save your progress to the cloud.'}
+                  </div>
+                ) : (
+                  Object.entries(getAllSavedGames()).map(([name, saveData]) => (
+                    <div key={name} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '16px',
+                      marginBottom: '8px',
+                      backgroundColor: name === currentSaveName ? '#ede9fe' : '#f9fafb',
+                      borderRadius: '8px',
+                      border: name === currentSaveName ? '2px solid #9333ea' : '1px solid #e5e7eb'
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ 
+                          ...typography.cardHeader, 
+                          marginBottom: '4px',
+                          color: name === currentSaveName ? '#9333ea' : colors.textPrimary,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}>
+                          {name} {name === currentSaveName && '(Current)'}
+                          {saveData.playerId && (
+                            <span style={{ fontSize: '10px', opacity: 0.7 }} title="Cloud Save">☁️</span>
+                          )}
+                        </div>
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: colors.textSecondary,
+                          fontFamily: 'Alan Sans, Arial, sans-serif'
+                        }}>
+                          💰${saveData.money?.toLocaleString()} • 🐔{(saveData.chickens || 0) + (saveData.goldenChickens || 0)} • 
+                          📅{saveData.savedAt ? new Date(saveData.savedAt).toLocaleDateString() : 'Unknown'}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
+                        <button
+                          onClick={() => loadGameByName(name)}
+                          style={{
+                            background: 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: colors.borderRadius,
+                            padding: '6px 12px',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            fontFamily: 'Alan Sans, Arial, sans-serif'
+                          }}
+                        >
+                          📂 Load
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete "${name}"'s save file?`)) {
+                              deleteSavedGame(name);
+                            }
+                          }}
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            color: '#dc2626',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            borderRadius: colors.borderRadius,
+                            padding: '6px 8px',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontFamily: 'Alan Sans, Arial, sans-serif'
+                          }}
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {/* Storage Usage Info */}
+                {(() => {
+                  const storageInfo = getStorageInfo();
+                  return (
+                    <div style={{
+                      marginTop: '16px',
+                      padding: '12px',
+                      background: storageInfo.usagePercent > 80 ? '#fef3c7' : '#f3f4f6',
+                      borderRadius: colors.borderRadius,
+                      border: storageInfo.usagePercent > 80 ? '1px solid #f59e0b' : '1px solid #d1d5db'
+                    }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        marginBottom: '6px'
+                      }}>
+                        <span style={{ 
+                          fontSize: '11px', 
+                          fontWeight: '600', 
+                          color: storageInfo.usagePercent > 80 ? '#92400e' : colors.textSecondary,
+                          fontFamily: 'Alan Sans, Arial, sans-serif'
+                        }}>
+                          📊 Storage Usage
+                        </span>
+                        <span style={{ 
+                          fontSize: '11px', 
+                          color: storageInfo.usagePercent > 80 ? '#92400e' : colors.textSecondary,
+                          fontFamily: 'Alan Sans, Arial, sans-serif'
+                        }}>
+                          {storageInfo.usagePercent}% used
+                        </span>
+                      </div>
+                      <div style={{ 
+                        fontSize: '10px', 
+                        color: storageInfo.usagePercent > 80 ? '#92400e' : colors.textSecondary,
+                        fontFamily: 'Alan Sans, Arial, sans-serif'
+                      }}>
+                        💾 {storageInfo.totalSaves} saves • {storageInfo.sizeInKB}KB / {Math.round(storageInfo.estimatedLimit/1024)}MB used
+                        {storageInfo.usagePercent > 80 && (
+                          <div style={{ marginTop: '4px', color: '#dc2626' }}>
+                            ⚠️ Storage nearly full! Consider deleting old saves.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Lobby Animation Styles */}
         <style jsx>{`
           @keyframes float {
@@ -3360,210 +3564,6 @@ function App() {
                     💾 Save Game
                   </button>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Load Game Modal */}
-        {showLoadModal && (
-          <div style={{
-            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-            backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 100,
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
-          }}>
-            <div style={{
-              background: colors.cardBg,
-              borderRadius: colors.borderRadiusLarge,
-              width: '90%', maxWidth: '600px', maxHeight: '80%',
-              overflow: 'hidden',
-              border: '3px solid #9333ea',
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
-            }}>
-              <div style={{
-                padding: '20px',
-                borderBottom: '1px solid #e5e7eb',
-                background: 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)',
-                color: 'white',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <h2 style={{ ...typography.sectionHeader, margin: 0, color: 'white' }}>
-                    📂 Load Saved Game
-                  </h2>
-                  <p style={{ ...typography.bodyText, margin: '4px 0 0 0', opacity: 0.9 }}>
-                    Select a saved game to continue playing
-                  </p>
-                </div>
-                <button 
-                  onClick={() => setShowLoadModal(false)} 
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.2)', 
-                    border: 'none', 
-                    fontSize: '20px', 
-                    cursor: 'pointer',
-                    borderRadius: '50%',
-                    width: '32px',
-                    height: '32px',
-                    color: 'white'
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-              
-              <div style={{ padding: '20px', maxHeight: '400px', overflow: 'auto' }}>
-                {savedGamesLoading ? (
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '40px',
-                    color: colors.textSecondary,
-                    ...typography.bodyText
-                  }}>
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-                    Loading saved games...
-                    {currentUser && (
-                      <div style={{ fontSize: '12px', marginTop: '8px', opacity: 0.7 }}>
-                        Fetching from cloud...
-                      </div>
-                    )}
-                  </div>
-                ) : Object.keys(getAllSavedGames()).length === 0 ? (
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '40px',
-                    color: colors.textSecondary,
-                    ...typography.bodyText
-                  }}>
-                    🎮 No saved games found!<br />
-                    {currentUser ? 'Save your progress to see it here.' : 'Sign in to save your progress to the cloud.'}
-                  </div>
-                ) : (
-                  Object.entries(getAllSavedGames()).map(([name, saveData]) => (
-                    <div key={name} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '16px',
-                      marginBottom: '8px',
-                      backgroundColor: name === currentSaveName ? '#ede9fe' : '#f9fafb',
-                      borderRadius: '8px',
-                      border: name === currentSaveName ? '2px solid #9333ea' : '1px solid #e5e7eb'
-                    }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ 
-                          ...typography.cardHeader, 
-                          marginBottom: '4px',
-                          color: name === currentSaveName ? '#9333ea' : colors.textPrimary,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px'
-                        }}>
-                          {name} {name === currentSaveName && '(Current)'}
-                          {saveData.playerId && (
-                            <span style={{ fontSize: '10px', opacity: 0.7 }} title="Cloud Save">☁️</span>
-                          )}
-                        </div>
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: colors.textSecondary,
-                          fontFamily: 'Alan Sans, Arial, sans-serif'
-                        }}>
-                          💰${saveData.money?.toLocaleString()} • 🐔{(saveData.chickens || 0) + (saveData.goldenChickens || 0)} • 
-                          📅{saveData.savedAt ? new Date(saveData.savedAt).toLocaleDateString() : 'Unknown'}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
-                        <button
-                          onClick={() => loadGameByName(name)}
-                          style={{
-                            background: 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: colors.borderRadius,
-                            padding: '6px 12px',
-                            cursor: 'pointer',
-                            fontSize: '11px',
-                            fontWeight: '600',
-                            fontFamily: 'Alan Sans, Arial, sans-serif'
-                          }}
-                        >
-                          📂 Load
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Delete "${name}"'s save file?`)) {
-                              deleteSavedGame(name);
-                            }
-                          }}
-                          style={{
-                            background: 'rgba(239, 68, 68, 0.1)',
-                            color: '#dc2626',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
-                            borderRadius: colors.borderRadius,
-                            padding: '6px 8px',
-                            cursor: 'pointer',
-                            fontSize: '11px',
-                            fontFamily: 'Alan Sans, Arial, sans-serif'
-                          }}
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-
-                {/* Storage Usage Info */}
-                {(() => {
-                  const storageInfo = getStorageInfo();
-                  return (
-                    <div style={{
-                      marginTop: '16px',
-                      padding: '12px',
-                      background: storageInfo.usagePercent > 80 ? '#fef3c7' : '#f3f4f6',
-                      borderRadius: colors.borderRadius,
-                      border: storageInfo.usagePercent > 80 ? '1px solid #f59e0b' : '1px solid #d1d5db'
-                    }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center',
-                        marginBottom: '6px'
-                      }}>
-                        <span style={{ 
-                          fontSize: '11px', 
-                          fontWeight: '600', 
-                          color: storageInfo.usagePercent > 80 ? '#92400e' : colors.textSecondary,
-                          fontFamily: 'Alan Sans, Arial, sans-serif'
-                        }}>
-                          📊 Storage Usage
-                        </span>
-                        <span style={{ 
-                          fontSize: '11px', 
-                          color: storageInfo.usagePercent > 80 ? '#92400e' : colors.textSecondary,
-                          fontFamily: 'Alan Sans, Arial, sans-serif'
-                        }}>
-                          {storageInfo.usagePercent}% used
-                        </span>
-                      </div>
-                      <div style={{ 
-                        fontSize: '10px', 
-                        color: storageInfo.usagePercent > 80 ? '#92400e' : colors.textSecondary,
-                        fontFamily: 'Alan Sans, Arial, sans-serif'
-                      }}>
-                        💾 {storageInfo.totalSaves} saves • {storageInfo.sizeInKB}KB / {Math.round(storageInfo.estimatedLimit/1024)}MB used
-                        {storageInfo.usagePercent > 80 && (
-                          <div style={{ marginTop: '4px', color: '#dc2626' }}>
-                            ⚠️ Storage nearly full! Consider deleting old saves.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
             </div>
           </div>
