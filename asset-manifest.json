@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/Chikboom/static/css/main.5f34cb86.css",
-    "main.js": "/Chikboom/static/js/main.aceb68b7.js",
+    "main.js": "/Chikboom/static/js/main.bcc76913.js",
     "static/js/453.4fed7cdc.chunk.js": "/Chikboom/static/js/453.4fed7cdc.chunk.js",
     "static/media/alan-sans-latin-400-normal.woff": "/Chikboom/static/media/alan-sans-latin-400-normal.2584b972c11304e8903f.woff",
     "static/media/alan-sans-latin-700-normal.woff": "/Chikboom/static/media/alan-sans-latin-700-normal.d49d6f7f53924c235ddf.woff",
@@ -13,11 +13,11 @@
     "static/media/alan-sans-latin-ext-400-normal.woff2": "/Chikboom/static/media/alan-sans-latin-ext-400-normal.98578c0552071c394b24.woff2",
     "index.html": "/Chikboom/index.html",
     "main.5f34cb86.css.map": "/Chikboom/static/css/main.5f34cb86.css.map",
-    "main.aceb68b7.js.map": "/Chikboom/static/js/main.aceb68b7.js.map",
+    "main.bcc76913.js.map": "/Chikboom/static/js/main.bcc76913.js.map",
     "453.4fed7cdc.chunk.js.map": "/Chikboom/static/js/453.4fed7cdc.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.5f34cb86.css",
-    "static/js/main.aceb68b7.js"
+    "static/js/main.bcc76913.js"
   ]
 }
