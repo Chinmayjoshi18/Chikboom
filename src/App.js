@@ -528,6 +528,7 @@ function App() {
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [savedGamesData, setSavedGamesData] = useState({});
+  const [savedGamesLoading, setSavedGamesLoading] = useState(false);
   const [floatingTexts, setFloatingTexts] = useState([]);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [musicVolume, setMusicVolume] = useState(5); // Volume as percentage (0-10)
@@ -1656,12 +1657,16 @@ function App() {
   };
 
   const loadSavedGamesData = async () => {
+    setSavedGamesLoading(true);
     try {
       const data = await firebaseGameManager.getAllSavedGames();
       setSavedGamesData(data);
     } catch (error) {
       console.error('Failed to load saved games:', error);
       setSavedGamesData({});
+      showFloatingText('❌ Failed to load saved games!', colors.red);
+    } finally {
+      setSavedGamesLoading(false);
     }
   };
 
@@ -1753,6 +1758,12 @@ function App() {
         setCurrentSaveName(name);
         setShowLoadModal(false);
         
+        // If loading from lobby, start the game
+        if (!gameStarted || inLobby) {
+          setGameStarted(true);
+          setInLobby(false);
+        }
+        
         if (firebaseGameManager.isAuthenticated()) {
           showFloatingText(`☁️ Loaded "${name}"'s game from cloud!`, colors.green);
         } else {
@@ -1778,6 +1789,9 @@ function App() {
       const result = await firebaseGameManager.deleteSavedGame(name);
       
       if (result.success) {
+        // Reload the saved games list
+        await loadSavedGamesData();
+        
         if (result.location === 'cloud') {
           showFloatingText(`☁️ Deleted "${name}"'s save from cloud!`, colors.orange);
         } else {
@@ -3401,7 +3415,22 @@ function App() {
               </div>
               
               <div style={{ padding: '20px', maxHeight: '400px', overflow: 'auto' }}>
-                {Object.keys(getAllSavedGames()).length === 0 ? (
+                {savedGamesLoading ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px',
+                    color: colors.textSecondary,
+                    ...typography.bodyText
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+                    Loading saved games...
+                    {currentUser && (
+                      <div style={{ fontSize: '12px', marginTop: '8px', opacity: 0.7 }}>
+                        Fetching from cloud...
+                      </div>
+                    )}
+                  </div>
+                ) : Object.keys(getAllSavedGames()).length === 0 ? (
                   <div style={{
                     textAlign: 'center',
                     padding: '40px',
@@ -3409,7 +3438,7 @@ function App() {
                     ...typography.bodyText
                   }}>
                     🎮 No saved games found!<br />
-                    Save your current progress first.
+                    {currentUser ? 'Save your progress to see it here.' : 'Sign in to save your progress to the cloud.'}
                   </div>
                 ) : (
                   Object.entries(getAllSavedGames()).map(([name, saveData]) => (
@@ -3427,9 +3456,15 @@ function App() {
                         <div style={{ 
                           ...typography.cardHeader, 
                           marginBottom: '4px',
-                          color: name === currentSaveName ? '#9333ea' : colors.textPrimary
+                          color: name === currentSaveName ? '#9333ea' : colors.textPrimary,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
                         }}>
                           {name} {name === currentSaveName && '(Current)'}
+                          {saveData.playerId && (
+                            <span style={{ fontSize: '10px', opacity: 0.7 }} title="Cloud Save">☁️</span>
+                          )}
                         </div>
                         <div style={{ 
                           fontSize: '12px', 
@@ -3461,9 +3496,6 @@ function App() {
                           onClick={() => {
                             if (window.confirm(`Delete "${name}"'s save file?`)) {
                               deleteSavedGame(name);
-                              // Force re-render by toggling modal
-                              setShowLoadModal(false);
-                              setTimeout(() => setShowLoadModal(true), 100);
                             }
                           }}
                           style={{
